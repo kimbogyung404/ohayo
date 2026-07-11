@@ -1,28 +1,49 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import FlashCard from '@/components/vocabulary/FlashCard';
 import FlashCardNavigation from '@/components/vocabulary/FlashCardNavigation';
 import EmptyState from '@/components/common/EmptyState';
+import LoadingState from '@/components/common/LoadingState';
 import { useToast } from '@/components/ui/Toast';
 
 export default function SavedPage() {
-  const { savedWords, unsaveWord, isLoaded } = useSavedVocabulary();
+  const { user, isLoggedIn, isLoading: isAuthLoading, signOut } = useAuth();
+  const { savedWords, unsaveWord, isLoaded } = useSavedVocabulary(user?.id ?? null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const { showToast } = useToast();
 
-  // M1: 로그인 상태 시뮬레이션 (항상 비로그인)
-  const isLoggedIn = false;
-
-  const handleUnsave = (vocabularyId: string) => {
-    unsaveWord(vocabularyId);
+  const handleUnsave = async (vocabularyId: string) => {
+    const { error } = await unsaveWord(vocabularyId);
+    if (error) {
+      showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
+      return;
+    }
     showToast('저장을 해제했어요.', 'info');
     // 마지막 카드 삭제 시 이전 카드로 이동
     if (currentIndex > 0 && currentIndex >= savedWords.length - 1) {
       setCurrentIndex((prev) => prev - 1);
     }
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    showToast('로그아웃했어요.', 'info');
+  };
+
+  // 로그인 상태 확인 중
+  if (isAuthLoading) {
+    return (
+      <div>
+        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
+          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
+        </header>
+        <LoadingState />
+      </div>
+    );
+  }
 
   // 비로그인 상태
   if (!isLoggedIn) {
@@ -42,15 +63,36 @@ export default function SavedPage() {
     );
   }
 
-  // 저장 단어 없음
-  if (isLoaded && savedWords.length === 0) {
+  // 저장 단어 조회 중
+  if (!isLoaded) {
     return (
       <div>
         <header className="px-[var(--page-padding-x)] pt-8 pb-4">
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-          <p className="text-caption text-[var(--text-tertiary)] mt-1">
-            저장한 단어 0개
-          </p>
+        </header>
+        <LoadingState />
+      </div>
+    );
+  }
+
+  // 저장 단어 없음
+  if (savedWords.length === 0) {
+    return (
+      <div>
+        <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
+          <div>
+            <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
+            <p className="text-caption text-[var(--text-tertiary)] mt-1">
+              저장한 단어 0개
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1 py-1"
+          >
+            로그아웃
+          </button>
         </header>
         <EmptyState
           icon="✨"
@@ -68,13 +110,20 @@ export default function SavedPage() {
   return (
     <div>
       {/* 헤더 */}
-      <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-center justify-between">
+      <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
         <div>
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
           <p className="text-caption text-[var(--text-tertiary)] mt-0.5">
             총 {savedWords.length}개
           </p>
         </div>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1 py-1"
+        >
+          로그아웃
+        </button>
       </header>
 
       {/* 플래시카드 내비게이션 (상단) */}

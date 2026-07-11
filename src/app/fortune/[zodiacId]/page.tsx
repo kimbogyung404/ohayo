@@ -2,7 +2,7 @@
 
 import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getMockFortune } from '@/lib/fortune/mock';
 import { getZodiac } from '@/lib/zodiac';
 import FortuneSentence from '@/components/fortune/FortuneSentence';
@@ -12,9 +12,18 @@ import TranslationReveal from '@/components/fortune/TranslationReveal';
 import LuckyItem from '@/components/fortune/LuckyItem';
 import SourceNotice from '@/components/fortune/SourceNotice';
 import LoginPromptSheet from '@/components/auth/LoginPromptSheet';
+import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import { useToast } from '@/components/ui/Toast';
 import type { ZodiacId } from '@/types/fortune';
+
+const PENDING_SAVE_KEY = 'ohayo_pending_save';
+
+interface PendingSave {
+  returnUrl: string;
+  pendingVocabularyId: string;
+  zodiacId: string;
+}
 
 export default function FortuneDetailPage() {
   const params = useParams();
@@ -26,16 +35,37 @@ export default function FortuneDetailPage() {
   const [selectedVocabId, setSelectedVocabId] = useState<string | null>(null);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
 
-  // M1: 로컬 저장 상태 (M2에서 Supabase로 교체)
-  const { isSaved, saveWord, unsaveWord } = useSavedVocabulary();
+  const { user, isLoggedIn, signInWithGoogle } = useAuth();
+  const { isSaved, saveWord, unsaveWord } = useSavedVocabulary(user?.id ?? null);
   const { showToast } = useToast();
-
-  // M1: 로그인 상태 시뮬레이션 (항상 비로그인)
-  const isLoggedIn = false;
 
   if (!fortune || !zodiac) {
     notFound();
   }
+
+  // 로그인 전에 선택했던 단어를 로그인 완료 후 자동 저장
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const raw = sessionStorage.getItem(PENDING_SAVE_KEY);
+    if (!raw) return;
+
+    sessionStorage.removeItem(PENDING_SAVE_KEY);
+    try {
+      const pending = JSON.parse(raw) as PendingSave;
+      if (pending.zodiacId !== zodiacId) return;
+
+      saveWord(pending.pendingVocabularyId).then(({ error }) => {
+        if (error) {
+          showToast('단어를 저장하지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.', 'error');
+        } else {
+          showToast('단어를 저장했어요!', 'success');
+        }
+      });
+    } catch {
+      // 손상된 데이터는 무시
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   const selectedVocab = fortune.vocabulary.find((v) => v.id === selectedVocabId);
 
@@ -43,24 +73,42 @@ export default function FortuneDetailPage() {
     setSelectedVocabId((prev) => (prev === vocabId ? null : vocabId));
   };
 
-  const handleSave = (vocabId: string) => {
+  const handleSave = async (vocabId: string) => {
     if (!isLoggedIn) {
+      const pending: PendingSave = {
+        returnUrl: window.location.pathname,
+        pendingVocabularyId: vocabId,
+        zodiacId,
+      };
+      sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify(pending));
       setShowLoginSheet(true);
       return;
     }
-    saveWord(fortune, vocabId);
-    showToast('단어를 저장했어요!', 'success');
+
+    const { error } = await saveWord(vocabId);
+    if (error) {
+      showToast('단어를 저장하지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.', 'error');
+    } else {
+      showToast('단어를 저장했어요!', 'success');
+    }
   };
 
-  const handleUnsave = (vocabId: string) => {
-    unsaveWord(vocabId);
-    showToast('저장을 해제했어요.', 'info');
+  const handleUnsave = async (vocabId: string) => {
+    const { error } = await unsaveWord(vocabId);
+    if (error) {
+      showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
+    } else {
+      showToast('저장을 해제했어요.', 'info');
+    }
   };
 
-  const handleLoginComplete = () => {
-    // M2에서 실제 OAuth 연결 후 선택했던 단어를 자동 저장할 예정
+  const handleLoginStart = () => {
+    signInWithGoogle(window.location.pathname);
+  };
+
+  const handleLoginSheetClose = () => {
+    sessionStorage.removeItem(PENDING_SAVE_KEY);
     setShowLoginSheet(false);
-    showToast('M2 단계에서 Google 로그인이 연결됩니다.', 'info');
   };
 
   const fortuneDate = new Date(fortune.date).toLocaleDateString('ko-KR', {
@@ -153,8 +201,8 @@ export default function FortuneDetailPage() {
       {/* ─── 로그인 안내 바텀시트 ─── */}
       <LoginPromptSheet
         isOpen={showLoginSheet}
-        onClose={() => setShowLoginSheet(false)}
-        onLogin={handleLoginComplete}
+        onClose={handleLoginSheetClose}
+        onLogin={handleLoginStart}
       />
     </div>
   );

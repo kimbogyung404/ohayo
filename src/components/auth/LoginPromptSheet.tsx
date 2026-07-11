@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 interface LoginPromptSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: () => void;
+  onLogin: () => void | Promise<void>;
 }
 
 export default function LoginPromptSheet({
