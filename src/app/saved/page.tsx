@@ -7,11 +7,14 @@ import FlashCard from '@/components/vocabulary/FlashCard';
 import FlashCardNavigation from '@/components/vocabulary/FlashCardNavigation';
 import EmptyState from '@/components/common/EmptyState';
 import LoadingState from '@/components/common/LoadingState';
+import ErrorState from '@/components/common/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 
 export default function SavedPage() {
   const { user, isLoggedIn, isLoading: isAuthLoading, signOut } = useAuth();
-  const { savedWords, unsaveWord, isLoaded } = useSavedVocabulary(user?.id ?? null);
+  const { savedWords, unsaveWord, isLoaded, loadError, refresh } = useSavedVocabulary(
+    user?.id ?? null
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const { showToast } = useToast();
 
@@ -75,6 +78,22 @@ export default function SavedPage() {
     );
   }
 
+  // 조회 실패
+  if (loadError) {
+    return (
+      <div>
+        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
+          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
+        </header>
+        <ErrorState
+          title="저장한 단어를 불러오지 못했어요"
+          description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+          onRetry={refresh}
+        />
+      </div>
+    );
+  }
+
   // 저장 단어 없음
   if (savedWords.length === 0) {
     return (
@@ -126,15 +145,13 @@ export default function SavedPage() {
         </button>
       </header>
 
-      {/* 플래시카드 내비게이션 (상단) */}
-      {savedWords.length > 1 && (
-        <FlashCardNavigation
-          current={currentIndex}
-          total={savedWords.length}
-          onPrev={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-          onNext={() => setCurrentIndex((prev) => Math.min(savedWords.length - 1, prev + 1))}
-        />
-      )}
+      {/* 플래시카드 내비게이션 (상단) — 현재 위치 표시를 위해 카드가 1개여도 항상 렌더링 */}
+      <FlashCardNavigation
+        current={currentIndex}
+        total={savedWords.length}
+        onPrev={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+        onNext={() => setCurrentIndex((prev) => Math.min(savedWords.length - 1, prev + 1))}
+      />
 
       {/* 플래시카드 */}
       {currentWord && (

@@ -93,6 +93,7 @@ export function useSavedVocabulary(userId: string | null) {
   const [supabase] = useState(() => createClient());
   const [savedWords, setSavedWords] = useState<SavedWord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   // 언마운트 이후 setState를 막기 위한 가드
   const isMountedRef = useRef(true);
@@ -111,6 +112,7 @@ export function useSavedVocabulary(userId: string | null) {
       if (!userId) {
         if (!ignore && isMountedRef.current) {
           setSavedWords([]);
+          setLoadError(false);
           setIsLoaded(true);
         }
         return;
@@ -125,9 +127,12 @@ export function useSavedVocabulary(userId: string | null) {
       // effect가 이미 취소됐거나(userId 변경 등) 컴포넌트가 언마운트됐으면 반영하지 않는다.
       if (ignore || !isMountedRef.current) return;
 
-      // 조회에 실패해도 기존 savedWords는 유지하고, 로딩 상태만 반드시 종료한다.
-      if (!error) {
+      // error와 savedWords(빈 배열 포함)는 항상 함께 갱신해 두 상태가 섞이지 않게 한다.
+      if (error) {
+        setLoadError(true);
+      } else {
         setSavedWords(words);
+        setLoadError(false);
       }
       setIsLoaded(true);
     }
@@ -143,15 +148,22 @@ export function useSavedVocabulary(userId: string | null) {
     [savedWords]
   );
 
-  // 저장/저장 해제 이후 목록을 다시 불러온다. useEffect 밖(이벤트 핸들러)에서만 호출한다.
+  // 저장/저장 해제 이후, 그리고 조회 실패 화면의 "다시 시도" 버튼에서 재사용한다.
+  // useEffect 밖(이벤트 핸들러)에서만 호출한다.
   const refresh = useCallback(async () => {
     if (!userId) return;
 
     const { words, error } = await fetchSavedWords(supabase, userId);
     if (!isMountedRef.current) return;
-    if (!error) {
+
+    // error와 savedWords는 항상 함께 갱신해 두 상태가 섞이지 않게 한다.
+    if (error) {
+      setLoadError(true);
+    } else {
       setSavedWords(words);
+      setLoadError(false);
     }
+    setIsLoaded(true);
   }, [supabase, userId]);
 
   const saveWord = useCallback(
@@ -190,5 +202,5 @@ export function useSavedVocabulary(userId: string | null) {
     [supabase, userId, refresh]
   );
 
-  return { savedWords, isSaved, saveWord, unsaveWord, isLoaded, refresh };
+  return { savedWords, isSaved, saveWord, unsaveWord, isLoaded, loadError, refresh };
 }

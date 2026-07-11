@@ -43,7 +43,6 @@ export default function FlashCard({ word, onUnsave }: FlashCardProps) {
             style={{
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
-              boxShadow: 'var(--shadow-md)',
             }}
             aria-hidden={isFlipped}
           >
@@ -65,7 +64,6 @@ export default function FlashCard({ word, onUnsave }: FlashCardProps) {
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              boxShadow: 'var(--shadow-md)',
               minHeight: '240px',
             }}
             aria-hidden={!isFlipped}
