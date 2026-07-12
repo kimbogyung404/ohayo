@@ -35,7 +35,7 @@ export default function FortuneDetailPage() {
   const [selectedVocabId, setSelectedVocabId] = useState<string | null>(null);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
 
-  const { user, isLoggedIn, signInWithGoogle } = useAuth();
+  const { user, isLoggedIn, signInWithGoogle, waitForSession } = useAuth();
   const { isSaved, saveWord, unsaveWord } = useSavedVocabulary(user?.id ?? null);
   const { showToast } = useToast();
 
@@ -43,29 +43,61 @@ export default function FortuneDetailPage() {
     notFound();
   }
 
-  // 로그인 전에 선택했던 단어를 로그인 완료 후 자동 저장
+  // 로그인 전에 선택했던 단어를 로그인 완료 후 자동 저장한다.
+  //
+  // sessionStorage의 pending 정보는 "저장 성공/중복 확인"이 끝난 뒤에만 지운다.
+  // 세션이 아직 준비되지 않았거나 저장이 실패하면 pending을 그대로 남겨
+  // 다음 기회(재마운트, 재시도 등)에 다시 시도할 수 있게 한다.
   useEffect(() => {
     if (!isLoggedIn) return;
+
     const raw = sessionStorage.getItem(PENDING_SAVE_KEY);
     if (!raw) return;
 
-    sessionStorage.removeItem(PENDING_SAVE_KEY);
+    let pending: PendingSave;
     try {
-      const pending = JSON.parse(raw) as PendingSave;
-      if (pending.zodiacId !== zodiacId) return;
-
-      saveWord(pending.pendingVocabularyId).then(({ error }) => {
-        if (error) {
-          showToast('단어를 저장하지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.', 'error');
-        } else {
-          showToast('단어를 저장했어요!', 'success');
-        }
-      });
+      pending = JSON.parse(raw) as PendingSave;
     } catch {
-      // 손상된 데이터는 무시
+      // 복구 불가능한 손상된 데이터만 즉시 정리한다.
+      sessionStorage.removeItem(PENDING_SAVE_KEY);
+      return;
     }
+
+    if (pending.zodiacId !== zodiacId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      // isLoggedIn(React state)이 true여도 브라우저 세션이 아직 준비되지
+      // 않았을 수 있으므로, 실제 인증 사용자를 재확인한 뒤에만 저장을 시도한다.
+      const verifiedUserId = await waitForSession();
+      if (cancelled) return;
+
+      if (!verifiedUserId) {
+        // 세션 확인 실패: pending을 유지하고 조용히 종료한다 (재시도 기회를 남김).
+        return;
+      }
+
+      const result = await saveWord(pending.pendingVocabularyId);
+      if (cancelled) return;
+
+      if (result.status === 'saved') {
+        sessionStorage.removeItem(PENDING_SAVE_KEY);
+        showToast('단어가 저장되었어요', 'success');
+      } else if (result.status === 'duplicate') {
+        sessionStorage.removeItem(PENDING_SAVE_KEY);
+        showToast('이미 저장된 단어예요', 'info');
+      } else {
+        // save_failed / not_logged_in: pending을 유지한다. 성공 토스트는 띄우지 않는다.
+        showToast('단어를 저장하지 못했어요. 다시 시도해 주세요.', 'error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn]);
+  }, [isLoggedIn, zodiacId]);
 
   const selectedVocab = fortune.vocabulary.find((v) => v.id === selectedVocabId);
 
@@ -85,20 +117,22 @@ export default function FortuneDetailPage() {
       return;
     }
 
-    const { error } = await saveWord(vocabId);
-    if (error) {
-      showToast('단어를 저장하지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.', 'error');
+    const result = await saveWord(vocabId);
+    if (result.status === 'saved') {
+      showToast('단어가 저장되었어요', 'success');
+    } else if (result.status === 'duplicate') {
+      showToast('이미 저장된 단어예요', 'info');
     } else {
-      showToast('단어를 저장했어요!', 'success');
+      showToast('단어를 저장하지 못했어요. 다시 시도해 주세요.', 'error');
     }
   };
 
   const handleUnsave = async (vocabId: string) => {
-    const { error } = await unsaveWord(vocabId);
-    if (error) {
-      showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
-    } else {
+    const result = await unsaveWord(vocabId);
+    if (result.status === 'removed') {
       showToast('저장을 해제했어요.', 'info');
+    } else {
+      showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
     }
   };
 

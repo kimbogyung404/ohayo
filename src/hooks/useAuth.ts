@@ -42,5 +42,22 @@ export function useAuth() {
     await supabase.auth.signOut();
   }, [supabase]);
 
-  return { user, isLoggedIn: !!user, isLoading, signInWithGoogle, signOut };
+  // OAuth 리다이렉트 복귀 직후 등, React state(isLoggedIn)는 true여도
+  // 브라우저 세션이 아직 완전히 준비되지 않았을 수 있어 재확인한다.
+  // 최대 3회, 400ms 간격으로 재시도하고 확인되면 user state도 갱신한다.
+  const waitForSession = useCallback(async (): Promise<string | null> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error && data.user) {
+        setUser(data.user);
+        return data.user.id;
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    }
+    return null;
+  }, [supabase]);
+
+  return { user, isLoggedIn: !!user, isLoading, signInWithGoogle, signOut, waitForSession };
 }

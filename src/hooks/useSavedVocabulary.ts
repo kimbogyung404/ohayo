@@ -5,7 +5,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { SavedWord } from '@/types/vocabulary';
 
-type SaveResult = { error: 'not_logged_in' | 'save_failed' | 'unsave_failed' | null };
+type SaveOutcome =
+  | { status: 'saved' }
+  | { status: 'duplicate' } // 이미 저장되어 있던 단어 (중복 저장 아님)
+  | { status: 'error'; error: 'not_logged_in' | 'save_failed' };
+
+type UnsaveOutcome =
+  | { status: 'removed' }
+  | { status: 'error'; error: 'not_logged_in' | 'unsave_failed' };
 
 interface SavedVocabularyRow {
   id: string;
@@ -150,10 +157,16 @@ export function useSavedVocabulary(userId: string | null) {
 
   // 저장/저장 해제 이후, 그리고 조회 실패 화면의 "다시 시도" 버튼에서 재사용한다.
   // useEffect 밖(이벤트 핸들러)에서만 호출한다.
+  //
+  // 훅에 전달된 userId(React state) 대신 매번 supabase.auth.getUser()로 직접
+  // 확인한다. OAuth 리다이렉트 복귀 직후처럼 userId prop이 아직 갱신되지 않은
+  // 시점에 호출돼도(예: saveWord 내부 호출) 항상 최신 세션 기준으로 동작하기 위함이다.
   const refresh = useCallback(async () => {
-    if (!userId) return;
+    const { data } = await supabase.auth.getUser();
+    const currentUserId = data.user?.id ?? null;
+    if (!currentUserId) return;
 
-    const { words, error } = await fetchSavedWords(supabase, userId);
+    const { words, error } = await fetchSavedWords(supabase, currentUserId);
     if (!isMountedRef.current) return;
 
     // error와 savedWords는 항상 함께 갱신해 두 상태가 섞이지 않게 한다.
@@ -164,30 +177,50 @@ export function useSavedVocabulary(userId: string | null) {
       setLoadError(false);
     }
     setIsLoaded(true);
-  }, [supabase, userId]);
+  }, [supabase]);
 
   const saveWord = useCallback(
-    async (vocabularyId: string): Promise<SaveResult> => {
-      if (!userId) return { error: 'not_logged_in' };
-      if (isSaved(vocabularyId)) return { error: null }; // 중복 저장 방지: 기존 상태 유지
+    async (vocabularyId: string): Promise<SaveOutcome> => {
+      // React state의 userId를 신뢰하지 않고, 저장 시점에 실제 인증 사용자를 직접 확인한다.
+      // (OAuth 리다이렉트 복귀 직후에는 useAuth의 user state가 아직 최신이 아닐 수 있음)
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const verifiedUserId = userData.user?.id ?? null;
+
+      if (userError || !verifiedUserId) {
+        return { status: 'error', error: 'not_logged_in' };
+      }
+
+      if (isSaved(vocabularyId)) return { status: 'duplicate' }; // 로컬에서 이미 저장 상태로 확인됨
 
       const { error } = await supabase
         .from('saved_vocabulary')
-        .insert({ user_id: userId, vocabulary_id: vocabularyId });
+        .insert({ user_id: verifiedUserId, vocabulary_id: vocabularyId });
 
-      // 23505 = unique_violation (동시 요청 등으로 이미 저장된 경우) -> 실패로 취급하지 않는다
-      if (error && error.code !== '23505') {
-        return { error: 'save_failed' };
+      if (error) {
+        // 23505 = unique_violation: 동시 요청 등으로 서버에는 이미 저장되어 있던 경우
+        // 화면 상태를 실제 저장 상태와 일치시키기 위해 refresh 후 duplicate로 반환한다.
+        if (error.code === '23505') {
+          await refresh();
+          return { status: 'duplicate' };
+        }
+        console.error('[useSavedVocabulary] saveWord failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        return { status: 'error', error: 'save_failed' };
       }
+
       await refresh();
-      return { error: null };
+      return { status: 'saved' };
     },
-    [supabase, userId, isSaved, refresh]
+    [supabase, isSaved, refresh]
   );
 
   const unsaveWord = useCallback(
-    async (vocabularyId: string): Promise<SaveResult> => {
-      if (!userId) return { error: 'not_logged_in' };
+    async (vocabularyId: string): Promise<UnsaveOutcome> => {
+      if (!userId) return { status: 'error', error: 'not_logged_in' };
 
       const { error } = await supabase
         .from('saved_vocabulary')
@@ -195,9 +228,18 @@ export function useSavedVocabulary(userId: string | null) {
         .eq('user_id', userId)
         .eq('vocabulary_id', vocabularyId);
 
-      if (error) return { error: 'unsave_failed' };
+      if (error) {
+        console.error('[useSavedVocabulary] unsaveWord failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        return { status: 'error', error: 'unsave_failed' };
+      }
+
       await refresh();
-      return { error: null };
+      return { status: 'removed' };
     },
     [supabase, userId, refresh]
   );

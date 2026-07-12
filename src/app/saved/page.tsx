@@ -19,8 +19,8 @@ export default function SavedPage() {
   const { showToast } = useToast();
 
   const handleUnsave = async (vocabularyId: string) => {
-    const { error } = await unsaveWord(vocabularyId);
-    if (error) {
+    const result = await unsaveWord(vocabularyId);
+    if (result.status !== 'removed') {
       showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
       return;
     }
