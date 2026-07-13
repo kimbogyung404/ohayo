@@ -4,14 +4,21 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, u
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  // action은 선택 인자이므로 기존 showToast(message)/showToast(message, type) 호출부는 그대로 동작한다.
+  showToast: (message: string, type?: ToastType, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({
@@ -50,7 +57,19 @@ function ToastItem({ toast, onRemove }: { toast: ToastItem; onRemove: (id: strin
       >
         {style.icon}
       </span>
-      <span>{toast.message}</span>
+      <span className="flex-1">{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action!.onClick();
+            onRemove(toast.id);
+          }}
+          className="flex-shrink-0 pointer-events-auto underline underline-offset-2 font-semibold hover:opacity-80 transition-opacity"
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   );
 }
@@ -59,9 +78,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
+  const showToast = useCallback((message: string, type: ToastType = 'info', action?: ToastAction) => {
     const id = String(++idRef.current);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type, action }]);
   }, []);
 
   const removeToast = useCallback((id: string) => {

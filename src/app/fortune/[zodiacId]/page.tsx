@@ -1,6 +1,6 @@
 'use client';
 
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMockFortune } from '@/lib/fortune/mock';
@@ -28,6 +28,7 @@ interface PendingSave {
 export default function FortuneDetailPage() {
   const params = useParams();
   const zodiacId = params.zodiacId as ZodiacId;
+  const router = useRouter();
 
   const fortune = getMockFortune(zodiacId);
   const zodiac = getZodiac(zodiacId);
@@ -42,6 +43,12 @@ export default function FortuneDetailPage() {
   if (!fortune || !zodiac) {
     notFound();
   }
+
+  // "바로 복습" 액션: 저장한 단어 화면으로 이동한다.
+  // /saved는 이미 saved_at 최신순으로 정렬되어 있어 방금 저장한 단어가 자동으로 첫 카드가 된다.
+  const goToSavedReview = () => {
+    router.push('/saved');
+  };
 
   // 로그인 전에 선택했던 단어를 로그인 완료 후 자동 저장한다.
   //
@@ -83,7 +90,7 @@ export default function FortuneDetailPage() {
 
       if (result.status === 'saved') {
         sessionStorage.removeItem(PENDING_SAVE_KEY);
-        showToast('단어가 저장되었어요', 'success');
+        showToast('단어가 저장되었어요', 'success', { label: '바로 복습', onClick: goToSavedReview });
       } else if (result.status === 'duplicate') {
         sessionStorage.removeItem(PENDING_SAVE_KEY);
         showToast('이미 저장된 단어예요', 'info');
@@ -119,7 +126,7 @@ export default function FortuneDetailPage() {
 
     const result = await saveWord(vocabId);
     if (result.status === 'saved') {
-      showToast('단어가 저장되었어요', 'success');
+      showToast('단어가 저장되었어요', 'success', { label: '바로 복습', onClick: goToSavedReview });
     } else if (result.status === 'duplicate') {
       showToast('이미 저장된 단어예요', 'info');
     } else {
