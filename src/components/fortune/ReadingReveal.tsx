@@ -22,7 +22,7 @@ export default function ReadingReveal({ readingText }: ReadingRevealProps) {
       </button>
 
       {isOpen && (
-        <div className="mt-2 p-3 bg-[var(--surface-subtle)] rounded-[var(--radius-md)] text-b2-regular text-[var(--text-secondary)]" lang="ja">
+        <div className="mt-2 p-3 bg-[var(--surface-subtle)] rounded-[var(--radius-md)] text-b2-regular text-[var(--text-secondary)] whitespace-pre-line" lang="ja">
           {readingText}
         </div>
       )}

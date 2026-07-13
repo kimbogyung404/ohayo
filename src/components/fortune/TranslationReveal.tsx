@@ -15,7 +15,7 @@ export default function TranslationReveal({ koreanTranslation }: TranslationReve
       <div className="mt-4">
         <div className="p-4 bg-[var(--surface-brand)] rounded-[var(--radius-lg)] border border-[var(--border-brand)]">
           <p className="text-caption text-[var(--text-brand)] font-semibold mb-1">한국어 해석</p>
-          <p className="text-b2-medium text-[var(--text-primary)] leading-relaxed">
+          <p className="text-b2-medium text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
             {koreanTranslation}
           </p>
         </div>

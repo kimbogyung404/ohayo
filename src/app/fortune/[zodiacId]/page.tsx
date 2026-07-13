@@ -3,7 +3,8 @@
 import { notFound, useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getMockFortune } from '@/lib/fortune/mock';
+import { createClient } from '@/lib/supabase/client';
+import { getFortuneByZodiac, getLatestReadyDate } from '@/lib/fortune/queries';
 import { getZodiac } from '@/lib/zodiac';
 import FortuneSentence from '@/components/fortune/FortuneSentence';
 import VocabularyPopover from '@/components/fortune/VocabularyPopover';
@@ -12,10 +13,12 @@ import TranslationReveal from '@/components/fortune/TranslationReveal';
 import LuckyItem from '@/components/fortune/LuckyItem';
 import SourceNotice from '@/components/fortune/SourceNotice';
 import LoginPromptSheet from '@/components/auth/LoginPromptSheet';
+import LoadingState from '@/components/common/LoadingState';
+import ErrorState from '@/components/common/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import { useToast } from '@/components/ui/Toast';
-import type { ZodiacId } from '@/types/fortune';
+import type { Fortune, ZodiacId } from '@/types/fortune';
 
 const PENDING_SAVE_KEY = 'ohayo_pending_save';
 
@@ -25,13 +28,18 @@ interface PendingSave {
   zodiacId: string;
 }
 
+type LoadStatus = 'loading' | 'ready' | 'not-found' | 'error';
+
 export default function FortuneDetailPage() {
   const params = useParams();
   const zodiacId = params.zodiacId as ZodiacId;
   const router = useRouter();
 
-  const fortune = getMockFortune(zodiacId);
   const zodiac = getZodiac(zodiacId);
+
+  const [fortune, setFortune] = useState<Fortune | null>(null);
+  const [status, setStatus] = useState<LoadStatus>('loading');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [selectedVocabId, setSelectedVocabId] = useState<string | null>(null);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
@@ -40,9 +48,42 @@ export default function FortuneDetailPage() {
   const { isSaved, saveWord, unsaveWord } = useSavedVocabulary(user?.id ?? null);
   const { showToast } = useToast();
 
-  if (!fortune || !zodiac) {
-    notFound();
-  }
+  // Supabase에서 실제 운세 데이터를 조회한다(공개 RLS, 브라우저 클라이언트로 충분).
+  // zodiacId 자체가 잘못된 경우는 이 effect보다 먼저(렌더 시점에) notFound()로 처리되므로
+  // 여기서는 항상 zodiac이 유효하다고 가정한다.
+  useEffect(() => {
+    if (!zodiac) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const supabase = createClient();
+      const date = await getLatestReadyDate(supabase);
+      if (cancelled) return;
+
+      if (!date) {
+        setStatus('not-found');
+        return;
+      }
+
+      const result = await getFortuneByZodiac(supabase, date, zodiacId);
+      if (cancelled) return;
+
+      if (!result) {
+        setStatus('not-found');
+        return;
+      }
+
+      setFortune(result);
+      setStatus('ready');
+    })().catch(() => {
+      if (!cancelled) setStatus('error');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [zodiacId, zodiac, reloadKey]);
 
   // "바로 복습" 액션: 저장한 단어 화면으로 이동한다.
   // /saved는 이미 saved_at 최신순으로 정렬되어 있어 방금 저장한 단어가 자동으로 첫 카드가 된다.
@@ -106,6 +147,39 @@ export default function FortuneDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, zodiacId]);
 
+  const handleLoginStart = () => {
+    signInWithGoogle(window.location.pathname);
+  };
+
+  const handleLoginSheetClose = () => {
+    sessionStorage.removeItem(PENDING_SAVE_KEY);
+    setShowLoginSheet(false);
+  };
+
+  if (!zodiac) {
+    notFound();
+  }
+
+  if (status === 'loading') {
+    return (
+      <div>
+        <LoadingState message="운세를 불러오는 중이에요..." />
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="px-[var(--page-padding-x)]">
+        <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
+      </div>
+    );
+  }
+
+  if (status === 'not-found' || !fortune) {
+    notFound();
+  }
+
   const selectedVocab = fortune.vocabulary.find((v) => v.id === selectedVocabId);
 
   const handleWordClick = (vocabId: string) => {
@@ -143,15 +217,6 @@ export default function FortuneDetailPage() {
     }
   };
 
-  const handleLoginStart = () => {
-    signInWithGoogle(window.location.pathname);
-  };
-
-  const handleLoginSheetClose = () => {
-    sessionStorage.removeItem(PENDING_SAVE_KEY);
-    setShowLoginSheet(false);
-  };
-
   const fortuneDate = new Date(fortune.date).toLocaleDateString('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -173,9 +238,9 @@ export default function FortuneDetailPage() {
         </Link>
         <div className="flex-1 min-w-0">
           <p className="text-h2 text-[var(--text-primary)] truncate" lang="ja">
-            {zodiac.japanese}
+            {fortune.zodiacJapanese}
           </p>
-          <p className="text-caption text-[var(--text-secondary)]">{zodiac.korean}</p>
+          <p className="text-caption text-[var(--text-secondary)]">{fortune.zodiacKorean}</p>
         </div>
         <div className="flex-shrink-0 text-center">
           <p className="text-caption text-[var(--text-tertiary)]">{fortuneDate}</p>
