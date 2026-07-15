@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 type ButtonHierarchy = 'primary' | 'secondary';
 type ButtonState = 'default' | 'hover' | 'pressed' | 'disabled';
-type ButtonSize = 'large' | 'medium';
+type ButtonSize = 'large' | 'medium' | 'small';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   hierarchy?: ButtonHierarchy;
@@ -24,7 +24,11 @@ const hierarchyStyles: Record<ButtonHierarchy, string> = {
 const sizeStyles: Record<ButtonSize, string> = {
   large: 'h-[var(--button-height-large)] text-b1-semibold px-6 rounded-[var(--radius-md)]',
   medium: 'h-[var(--button-height-medium)] text-b1-medium px-5 rounded-[var(--radius-md)]',
+  small: 'text-b2-medium p-[10px] rounded-[var(--radius-md)]',
 };
+
+// Small CTA(Figma)의 Secondary/Default만 large·medium의 secondary(회색)와 배색이 달라 별도 적용
+const secondarySmallStyles = 'bg-[var(--surface-brand)] text-[var(--text-brand)]';
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
@@ -42,6 +46,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const isDisabled = disabled || loading || state === 'disabled';
+    const hierarchyClassName =
+      hierarchy === 'secondary' && size === 'small' ? secondarySmallStyles : hierarchyStyles[hierarchy];
     return (
       <button
         ref={ref}
@@ -52,7 +58,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'transition-colors duration-[var(--transition-fast)]',
           'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-1',
           'disabled:cursor-not-allowed',
-          hierarchyStyles[hierarchy],
+          hierarchyClassName,
           sizeStyles[size],
           fullWidth ? 'w-full' : '',
           className,
