@@ -39,7 +39,7 @@ export default function LoginPromptSheet({
 
         {/* Google 로그인 버튼 */}
         <Button
-          variant="primary"
+          hierarchy="primary"
           size="large"
           fullWidth
           onClick={onLogin}

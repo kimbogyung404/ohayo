@@ -110,7 +110,7 @@ export default function FlashCard({ word, onUnsave }: FlashCardProps) {
       {/* 저장 해제 */}
       <div className="mt-4">
         <Button
-          variant="ghost"
+          hierarchy="secondary"
           size="medium"
           fullWidth
           onClick={() => onUnsave(word.vocabularyId)}

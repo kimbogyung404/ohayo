@@ -50,7 +50,7 @@ export default function VocabularyPopover({
 
       {/* 저장 버튼 */}
       <Button
-        variant={isSaved ? 'secondary' : 'primary'}
+        hierarchy={isSaved ? 'secondary' : 'primary'}
         size="medium"
         fullWidth
         onClick={isSaved ? onUnsave : onSave}

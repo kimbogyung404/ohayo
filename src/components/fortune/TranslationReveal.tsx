@@ -33,7 +33,7 @@ export default function TranslationReveal({ koreanTranslation }: TranslationReve
   return (
     <div className="mt-4">
       <Button
-        variant="secondary"
+        hierarchy="secondary"
         size="medium"
         fullWidth
         onClick={() => setIsOpen(true)}

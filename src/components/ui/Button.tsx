@@ -2,36 +2,35 @@
 
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonHierarchy = 'primary' | 'secondary';
+type ButtonState = 'default' | 'hover' | 'pressed' | 'disabled';
 type ButtonSize = 'large' | 'medium';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
+  hierarchy?: ButtonHierarchy;
+  state?: ButtonState;
   size?: ButtonSize;
   fullWidth?: boolean;
   loading?: boolean;
 }
 
-const variantStyles: Record<ButtonVariant, string> = {
+const hierarchyStyles: Record<ButtonHierarchy, string> = {
   primary:
     'bg-[var(--brand-primary)] text-[var(--text-inverse)] hover:bg-[var(--brand-hover)] active:bg-[var(--brand-pressed)] disabled:bg-[var(--gray-100)] disabled:text-[var(--text-disabled)]',
   secondary:
-    'bg-[var(--surface-default)] text-[var(--text-primary)] border border-[var(--border-default)] hover:bg-[var(--surface-subtle)] active:bg-[var(--gray-100)] disabled:opacity-50',
-  ghost:
-    'bg-transparent text-[var(--text-brand)] hover:bg-[var(--surface-brand)] active:bg-[var(--brand-subtle)] disabled:opacity-50',
-  danger:
-    'bg-[var(--color-error)] text-[var(--text-inverse)] hover:opacity-90 active:opacity-80 disabled:opacity-50',
+    'bg-[var(--gray-100)] text-[var(--text-secondary)] disabled:text-[var(--text-disabled)]',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  large: 'h-[52px] text-b1-semibold px-6 rounded-[var(--radius-lg)]',
-  medium: 'h-[48px] text-b1-medium px-5 rounded-[var(--radius-lg)]',
+  large: 'h-[var(--button-height-large)] text-b1-semibold px-6 rounded-[var(--radius-md)]',
+  medium: 'h-[var(--button-height-medium)] text-b1-medium px-5 rounded-[var(--radius-md)]',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
-      variant = 'primary',
+      hierarchy = 'primary',
+      state = 'default',
       size = 'medium',
       fullWidth = false,
       loading = false,
@@ -42,17 +41,18 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    const isDisabled = disabled || loading || state === 'disabled';
     return (
       <button
         ref={ref}
-        disabled={disabled || loading}
+        disabled={isDisabled}
         className={[
           'inline-flex items-center justify-center gap-2',
           'font-[var(--font-primary)] cursor-pointer select-none',
           'transition-colors duration-[var(--transition-fast)]',
           'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-1',
           'disabled:cursor-not-allowed',
-          variantStyles[variant],
+          hierarchyStyles[hierarchy],
           sizeStyles[size],
           fullWidth ? 'w-full' : '',
           className,
