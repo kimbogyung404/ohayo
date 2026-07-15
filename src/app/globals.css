@@ -94,6 +94,8 @@
   /* ── Shadow (개발 권장값 — 레이어가 겹치는 요소에만 사용) ── */
   /* 기본 카드·일반 버튼에는 그림자를 사용하지 않는다 */
   --shadow-overlay: 0 4px 16px rgba(17, 18, 26, 0.08);
+  --shadow-300: 0 8px 24px 0 rgba(17, 18, 26, 0.12);
+  --drop-shadow-300: drop-shadow(0 8px 24px rgba(17, 18, 26, 0.12));
 
   /* ── Transition (개발 권장값) ── */
   --transition-fast: 150ms ease;
@@ -211,6 +213,11 @@ body {
   font-size: 1.25rem;
   line-height: 1.3;
   font-weight: 600;
+}
+.text-jp-h2 {
+  font-size: 1.25rem;
+  line-height: 1.35;
+  font-weight: 500;
 }
 .text-b1-semibold {
   font-size: 1.125rem;
