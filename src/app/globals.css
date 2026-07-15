@@ -94,7 +94,11 @@
   /* ── Shadow (개발 권장값 — 레이어가 겹치는 요소에만 사용) ── */
   /* 기본 카드·일반 버튼에는 그림자를 사용하지 않는다 */
   --shadow-overlay: 0 4px 16px rgba(17, 18, 26, 0.08);
+  --shadow-100: 0 1px 4px 0 rgba(17, 18, 26, 0.06);
+  --shadow-200: 0 4px 12px 0 rgba(17, 18, 26, 0.08);
   --shadow-300: 0 8px 24px 0 rgba(17, 18, 26, 0.12);
+  --drop-shadow-100: drop-shadow(0 1px 4px rgba(17, 18, 26, 0.06));
+  --drop-shadow-200: drop-shadow(0 4px 12px rgba(17, 18, 26, 0.08));
   --drop-shadow-300: drop-shadow(0 8px 24px rgba(17, 18, 26, 0.12));
 
   /* ── Transition (개발 권장값) ── */
