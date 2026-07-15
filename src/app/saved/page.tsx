@@ -9,6 +9,7 @@ import EmptyState from '@/components/common/EmptyState';
 import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
 import { useToast } from '@/components/ui/Toast';
+import BottomNavigation from '@/components/ui/BottomNavigation';
 
 export default function SavedPage() {
   const { user, isLoggedIn, isLoading: isAuthLoading, signOut } = useAuth();
@@ -39,11 +40,12 @@ export default function SavedPage() {
   // 로그인 상태 확인 중
   if (isAuthLoading) {
     return (
-      <div>
+      <div className="page-content-with-bottom-nav">
         <header className="px-[var(--page-padding-x)] pt-8 pb-4">
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
         </header>
         <LoadingState />
+        <BottomNavigation activeItem="saved" />
       </div>
     );
   }
@@ -51,7 +53,7 @@ export default function SavedPage() {
   // 비로그인 상태
   if (!isLoggedIn) {
     return (
-      <div>
+      <div className="page-content-with-bottom-nav">
         <header className="px-[var(--page-padding-x)] pt-8 pb-4">
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
         </header>
@@ -62,6 +64,7 @@ export default function SavedPage() {
           actionLabel="운세 보러 가기"
           actionHref="/"
         />
+        <BottomNavigation activeItem="saved" />
       </div>
     );
   }
@@ -69,11 +72,12 @@ export default function SavedPage() {
   // 저장 단어 조회 중
   if (!isLoaded) {
     return (
-      <div>
+      <div className="page-content-with-bottom-nav">
         <header className="px-[var(--page-padding-x)] pt-8 pb-4">
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
         </header>
         <LoadingState />
+        <BottomNavigation activeItem="saved" />
       </div>
     );
   }
@@ -81,7 +85,7 @@ export default function SavedPage() {
   // 조회 실패
   if (loadError) {
     return (
-      <div>
+      <div className="page-content-with-bottom-nav">
         <header className="px-[var(--page-padding-x)] pt-8 pb-4">
           <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
         </header>
@@ -90,6 +94,7 @@ export default function SavedPage() {
           description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
           onRetry={refresh}
         />
+        <BottomNavigation activeItem="saved" />
       </div>
     );
   }
@@ -97,7 +102,7 @@ export default function SavedPage() {
   // 저장 단어 없음
   if (savedWords.length === 0) {
     return (
-      <div>
+      <div className="page-content-with-bottom-nav">
         <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
           <div>
             <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
@@ -120,6 +125,7 @@ export default function SavedPage() {
           actionLabel="오늘의 운세 보기"
           actionHref="/"
         />
+        <BottomNavigation activeItem="saved" />
       </div>
     );
   }
@@ -127,7 +133,7 @@ export default function SavedPage() {
   const currentWord = savedWords[currentIndex];
 
   return (
-    <div>
+    <div className="page-content-with-bottom-nav">
       {/* 헤더 */}
       <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
         <div>
@@ -159,6 +165,7 @@ export default function SavedPage() {
           <FlashCard word={currentWord} onUnsave={handleUnsave} />
         </div>
       )}
+      <BottomNavigation activeItem="saved" />
     </div>
   );
 }

@@ -89,7 +89,7 @@
 
   /* ── Layout ── */
   --max-width-app: 480px;
-  --nav-height: 64px;
+  --nav-height: 80px;
 
   /* ── Shadow (개발 권장값 — 레이어가 겹치는 요소에만 사용) ── */
   /* 기본 카드·일반 버튼에는 그림자를 사용하지 않는다 */
@@ -195,9 +195,9 @@ body {
   position: relative;
 }
 
-/* 하단 내비게이션 영역만큼 콘텐츠 패딩 */
-.page-content {
-  padding-bottom: var(--nav-height);
+/* BottomNavigation이 실제로 있는 화면에서만 적용하는 하단 콘텐츠 패딩 */
+.page-content-with-bottom-nav {
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
 }
 
 /* ─────────────────────────────────────────

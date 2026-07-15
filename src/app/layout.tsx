@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import BottomNavigation from '@/components/ui/BottomNavigation';
 import { ToastProvider } from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
@@ -39,8 +38,7 @@ export default function RootLayout({
       <body className="h-full">
         <ToastProvider>
           <div id="app-container">
-            <main className="page-content">{children}</main>
-            <BottomNavigation />
+            <main>{children}</main>
           </div>
         </ToastProvider>
       </body>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getLatestReadyDate, getRankingForDate } from '@/lib/fortune/queries';
 import { getZodiac } from '@/lib/zodiac';
 import EmptyState from '@/components/common/EmptyState';
+import BottomNavigation from '@/components/ui/BottomNavigation';
 
 function getTodayLabel(): string {
   return new Date().toLocaleDateString('ko-KR', {
@@ -31,7 +32,7 @@ export default async function HomePage() {
   const sourceDate = readyDate ? formatSourceDate(readyDate) : '';
 
   return (
-    <div>
+    <div className="page-content-with-bottom-nav">
       {/* ─── 헤더 / 히어로 영역 (그래디언트 적용) ─── */}
       <header
         className="relative px-[var(--page-padding-x)] pt-10 pb-8 text-center overflow-hidden"
@@ -180,6 +181,7 @@ export default async function HomePage() {
           </footer>
         </>
       )}
+      <BottomNavigation activeItem="fortune" />
     </div>
   );
 }
