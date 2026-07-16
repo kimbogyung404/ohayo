@@ -1,7 +1,7 @@
 'use client';
 
 import { notFound, useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getFortuneByZodiac, getLatestReadyDate } from '@/lib/fortune/queries';
 import { getZodiac } from '@/lib/zodiac';
@@ -19,15 +19,14 @@ import Icon from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import { useToast } from '@/components/ui/Toast';
+import {
+  savePendingVocabSave,
+  readPendingVocabSave,
+  markPendingVocabSaveProcessing,
+  revertPendingVocabSaveToPending,
+  clearPendingVocabSave,
+} from '@/lib/pendingVocabSave';
 import type { Fortune, ZodiacId } from '@/types/fortune';
-
-const PENDING_REVIEW_SAVE_KEY = 'ohayo_pending_review_save';
-
-interface PendingReviewSave {
-  zodiacId: string;
-  selectedWordIds: string[];
-  returnStep: 'review';
-}
 
 type LoadStatus = 'loading' | 'ready' | 'not-found' | 'error';
 type LearningStep = 'study' | 'review' | 'complete';
@@ -77,6 +76,12 @@ export default function FortuneDetailPage() {
   const { isSaved, saveWords } = useSavedVocabulary(user?.id ?? null);
   const { showToast } = useToast();
 
+  // OAuth 왕복 후 pending 저장을 "이 마운트에서 정확히 한 번만" 복원/재개하기 위한 가드.
+  // Strict Mode의 mount→cleanup→mount 이중 실행에도 같은 컴포넌트 인스턴스라 ref가
+  // 유지되므로 안전하다(useSavedVocabulary의 isMountedRef와 동일한 이유).
+  const restoredPendingRef = useRef(false);
+  const resumeSaveAttemptedRef = useRef(false);
+
   // Supabase에서 실제 운세 데이터를 조회한다(공개 RLS, 브라우저 클라이언트로 충분).
   // zodiacId 자체가 잘못된 경우는 이 effect보다 먼저(렌더 시점에) notFound()로 처리되므로
   // 여기서는 항상 zodiac이 유효하다고 가정한다.
@@ -123,30 +128,65 @@ export default function FortuneDetailPage() {
 
   const activeWord = fortune?.vocabulary.find((v) => v.id === activeWordId) ?? null;
 
-  // 로그인 완료 후, 저장하려고 선택했던 단어 목록을 복원한다(자동 저장하지 않음 —
-  // 사용자가 review 화면에서 저장하기를 다시 눌러야 실제 저장이 진행된다).
+  // review 화면 상태(step/selectedWordIds) 복원 — 로그인 여부와 무관하게, 이 zodiac에
+  // 대한 pending 저장 의도가 남아있으면 항상 복원한다. OAuth를 취소하거나 실패해서
+  // 로그인하지 못한 채 이 화면으로 돌아오더라도, 사용자가 골랐던 단어를 다시 고를
+  // 필요가 없게 하기 위함이다(§6 로그인 취소·실패 처리).
+  useEffect(() => {
+    if (restoredPendingRef.current) return;
+
+    const pending = readPendingVocabSave(zodiacId);
+    if (!pending) return;
+
+    restoredPendingRef.current = true;
+    const raf = requestAnimationFrame(() => {
+      setStep('review');
+      setSelectedWordIds(new Set(pending.selectedVocabIds));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [zodiacId]);
+
+  // 로그인이 확인된 뒤, pending 저장 의도가 있으면 기존 저장 로직(saveWords)을 정확히
+  // 한 번만 재개한다. status가 이미 'processing'이면 — 직전 시도가 새로고침 등으로
+  // 중단되어 결과를 알 수 없는 경우 — 자동으로 다시 저장을 시도하지 않고 payload만
+  // 정리한다. 화면은 위 effect에서 이미 review로 복원되어 있으므로, 사용자가 직접
+  // '저장하기'를 눌러도 안전하다(saveWords는 이미 저장된 id를 걸러내는 멱등 동작).
   useEffect(() => {
     if (!isLoggedIn) return;
+    if (resumeSaveAttemptedRef.current) return;
 
-    queueMicrotask(() => {
-      const raw = sessionStorage.getItem(PENDING_REVIEW_SAVE_KEY);
-      if (!raw) return;
+    const pending = readPendingVocabSave(zodiacId);
+    if (!pending) return;
 
-      let pending: PendingReviewSave;
-      try {
-        pending = JSON.parse(raw) as PendingReviewSave;
-      } catch {
-        sessionStorage.removeItem(PENDING_REVIEW_SAVE_KEY);
+    resumeSaveAttemptedRef.current = true;
+
+    if (pending.status === 'processing') {
+      clearPendingVocabSave();
+      return;
+    }
+
+    markPendingVocabSaveProcessing();
+
+    saveWords(pending.selectedVocabIds).then((result) => {
+      if (result.status === 'saved') {
+        clearPendingVocabSave();
+        setStep('complete');
         return;
       }
 
-      if (pending.zodiacId !== zodiacId) return;
+      if (result.status === 'duplicate') {
+        clearPendingVocabSave();
+        showToast('이미 저장된 단어예요', 'info');
+        return;
+      }
 
-      setStep(pending.returnStep);
-      setSelectedWordIds(new Set(pending.selectedWordIds));
-      sessionStorage.removeItem(PENDING_REVIEW_SAVE_KEY);
+      // 저장 실패 — review에 그대로 남기고, 다음 로드에서 한 번 더 자동 재개할 수 있도록
+      // 상태만 'pending'으로 되돌린다(이 effect 자체는 매 마운트당 한 번만 실행되므로
+      // 무한 자동 재시도로 이어지지 않는다).
+      revertPendingVocabSaveToPending();
+      showToast('단어를 저장하지 못했어요. 다시 시도해 주세요.', 'error');
     });
-  }, [isLoggedIn, zodiacId]);
+  }, [isLoggedIn, zodiacId, saveWords, showToast]);
 
   // 단어 카드 오버레이 3초 자동 종료. activeWordId(와 openToken) 변경마다 새로
   // 실행되며, cleanup이 이전 타이머를 정리한다 — 그래서 새 단어를 열거나, 같은
@@ -214,7 +254,7 @@ export default function FortuneDetailPage() {
   };
 
   const handleLoginSheetClose = () => {
-    sessionStorage.removeItem(PENDING_REVIEW_SAVE_KEY);
+    clearPendingVocabSave();
     setShowLoginSheet(false);
   };
 
@@ -222,12 +262,7 @@ export default function FortuneDetailPage() {
     if (selectedWordIds.size === 0 || isSaving) return;
 
     if (!isLoggedIn) {
-      const pending: PendingReviewSave = {
-        zodiacId,
-        selectedWordIds: [...selectedWordIds],
-        returnStep: 'review',
-      };
-      sessionStorage.setItem(PENDING_REVIEW_SAVE_KEY, JSON.stringify(pending));
+      savePendingVocabSave({ zodiacId, selectedVocabIds: [...selectedWordIds] });
       setShowLoginSheet(true);
       return;
     }
