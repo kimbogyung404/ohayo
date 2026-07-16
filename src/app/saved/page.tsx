@@ -204,6 +204,7 @@ export default function SavedPage() {
                 mode="select"
                 selected={selectedIds.has(item.id)}
                 word={item.vocabulary.surfaceForm}
+                reading={item.vocabulary.reading}
                 meaning={item.vocabulary.meaning}
                 onSelect={() => toggleSelect(item.id)}
                 onPlayAudio={() => handlePlayAudio(item)}
@@ -217,6 +218,7 @@ export default function SavedPage() {
               mode="flip"
               revealed={revealedIds.has(item.id)}
               word={item.vocabulary.surfaceForm}
+              reading={item.vocabulary.reading}
               meaning={item.vocabulary.meaning}
               onFlip={() => toggleReveal(item.id)}
               onPlayAudio={() => handlePlayAudio(item)}
