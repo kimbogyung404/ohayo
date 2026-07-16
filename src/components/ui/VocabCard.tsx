@@ -5,10 +5,11 @@ import Icon from './Icon';
 type VocabCardProps =
   | {
       // 상세 학습 화면의 단어 오버레이 전용: 뒤집기 없이 항상 앞면만 보여준다
-      // (일본어 단어 + 읽는 법 + 발음 듣기, 뜻은 표시하지 않는다).
+      // (일본어 단어 + 읽는 법 + 한국어 뜻 + 발음 듣기).
       mode: 'front';
       word: string;
       reading?: string;
+      meaning?: string;
       onPlayAudio: () => void;
       className?: string;
     }
@@ -59,7 +60,7 @@ export default function VocabCard(props: VocabCardProps) {
   const rootClassName = props.className ?? '';
 
   if (props.mode === 'front') {
-    const { word, reading, onPlayAudio } = props;
+    const { word, reading, meaning, onPlayAudio } = props;
     return (
       <div
         className={[
@@ -77,6 +78,9 @@ export default function VocabCard(props: VocabCardProps) {
           <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
             {reading}
           </p>
+        )}
+        {meaning && (
+          <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaning}</p>
         )}
         <PlayAudioButton onPlayAudio={onPlayAudio} />
       </div>

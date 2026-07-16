@@ -14,7 +14,6 @@ import ErrorState from '@/components/common/ErrorState';
 import TopNavigation from '@/components/ui/TopNavigation';
 import VocabCard from '@/components/ui/VocabCard';
 import Button from '@/components/ui/Button';
-import Tooltip from '@/components/ui/Tooltip';
 import StickyActionBar from '@/components/ui/StickyActionBar';
 import Icon from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
@@ -354,7 +353,11 @@ export default function FortuneDetailPage() {
     );
   }
 
-  const ctaLabel = isAllChecked ? '확인한 단어 복습하기' : `단어 확인하기 ${checkedCount}/3`;
+  // 진행 안내 문구: 3/3 전에는 "확인해보세요", 3/3에서는 "모두 확인했어요"로 바뀐다.
+  // 마지막 단어와 카운트 사이는 줄바꿈 시 (N/3)만 혼자 남지 않도록 nbsp로 묶는다.
+  const progressText = isAllChecked
+    ? '일본어 단어 3개를 모두 확인했어요'
+    : '일본어 3개를 눌러서 전체 운세를 확인해보세요';
 
   return (
     <div>
@@ -364,7 +367,22 @@ export default function FortuneDetailPage() {
         onBack={() => router.push('/')}
       />
 
-      <div className="page-content-with-sticky-cta px-[var(--page-padding-x)] py-6">
+      <div
+        className={[
+          'px-[var(--page-padding-x)] py-6',
+          isAllChecked ? 'page-content-with-sticky-cta' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <p className="text-b1-medium text-[var(--text-primary)] mb-6">
+          {progressText}
+          {' '}
+          <span className="whitespace-nowrap text-[var(--text-brand)] font-semibold">
+            ({checkedCount}/3)
+          </span>
+        </p>
+
         {/* 오늘의 운세 — 한국어 본문, 핵심 단어 3개만 확인 전 일본어 */}
         <section aria-label="오늘의 운세" className="mb-6">
           <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
@@ -392,22 +410,24 @@ export default function FortuneDetailPage() {
         </section>
       </div>
 
-      {/* 단어 확인 진행 / 복습 진입 — 화면 최하단 고정. 3/3이어도 자동 이동하지 않고
-          사용자가 버튼을 눌러야 review로 넘어간다. */}
-      <StickyActionBar>
-        {!isAllChecked && <Tooltip>강조된 일본어 단어 3개를 눌러 뜻을 확인해보세요</Tooltip>}
-        <Button hierarchy="primary" size="large" fullWidth disabled={!isAllChecked} onClick={goToReview}>
-          {ctaLabel}
-        </Button>
-      </StickyActionBar>
+      {/* 복습 진입 CTA — 3/3을 달성한 순간에만 생성된다(항상 마운트된 채 숨겨두지 않음).
+          자동으로 review로 넘어가지 않으며 사용자가 직접 눌러야 이동한다. */}
+      {isAllChecked && (
+        <StickyActionBar className="animate-fade-in">
+          <Button hierarchy="primary" size="large" fullWidth onClick={goToReview}>
+            운세 속 단어 보관하기
+          </Button>
+        </StickyActionBar>
+      )}
 
-      {/* 단어 카드 오버레이 — 항상 앞면(단어+읽는 법+발음 듣기)만 표시, 뒤집기 없음, 3초 뒤 자동 종료 */}
+      {/* 단어 카드 오버레이 — 항상 앞면(단어+읽는 법+한국어 뜻+발음 듣기)만 표시, 뒤집기 없음, 3초 뒤 자동 종료 */}
       <VocabCardOverlay isOpen={activeWordId !== null} onClose={closeWordOverlay}>
         {activeWord && (
           <VocabCard
             mode="front"
             word={activeWord.surfaceForm}
             reading={activeWord.reading}
+            meaning={activeWord.meaning}
             onPlayAudio={() => speak(activeWord.reading || activeWord.surfaceForm)}
           />
         )}

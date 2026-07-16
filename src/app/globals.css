@@ -262,6 +262,29 @@ body {
 }
 
 /* ─────────────────────────────────────────
+   Fade In (3/3 달성 시 StickyActionBar 등장용 — 과도한 바운스·슬라이드 없이
+   opacity만 부드럽게 전환하고, 아주 작은 translateY만 허용한다)
+───────────────────────────────────────── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fade-in 250ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
+}
+
+/* ─────────────────────────────────────────
    Gradient — Brand Bottom
 ───────────────────────────────────────── */
 .gradient-brand {
