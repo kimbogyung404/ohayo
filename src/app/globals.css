@@ -329,6 +329,77 @@ body {
 }
 
 /* ─────────────────────────────────────────
+   Splash Screen — 앱 진입 시 세션당 1회 노출되는 인트로 화면.
+   480×960 Figma 프레임 기준 좌표를 뷰포트 높이 비율(calc(100dvh * n / 960))로
+   환산해서, 어떤 뷰포트 높이에서도 같은 비율 위치를 유지하고 100dvh=960px일 때
+   정확히 429px/541px로 계산되게 한다.
+───────────────────────────────────────── */
+.splash-screen {
+  position: fixed;
+  z-index: 9999;
+
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: min(100%, var(--max-width-app));
+  min-height: 100dvh;
+
+  background: var(--brand-primary);
+  overflow: hidden;
+
+  opacity: 1;
+  transition: opacity 280ms ease-out;
+}
+.splash-screen.splash-fade-out {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen {
+    transition: none;
+  }
+}
+/* 이미 이번 세션에 스플래시를 본 경우, hydration을 기다리지 않고 첫 페인트 전에
+   즉시 숨긴다. data-splash-seen은 SplashScreen(React)보다 먼저 실행되는 블로킹
+   인라인 스크립트가 설정한다(root layout, src/lib/splash.ts 참고). */
+html[data-splash-seen='true'] .splash-screen {
+  display: none;
+}
+.splash-inner {
+  position: relative;
+  width: 100%;
+  max-width: var(--max-width-app);
+  min-height: 100dvh;
+  margin: 0 auto;
+}
+.splash-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(100dvh * 429 / 960);
+  transform: translateX(-50%);
+  width: 258px;
+  height: auto;
+  color: var(--color-white);
+}
+.splash-tagline {
+  position: absolute;
+  left: 50%;
+  top: calc(100dvh * 541 / 960);
+  transform: translateX(-50%);
+  width: 222px;
+  height: 26px;
+  margin: 0;
+  font-family: var(--font-primary);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 130%;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--brand-light);
+}
+
+/* ─────────────────────────────────────────
    Gradient — Brand Bottom
 ───────────────────────────────────────── */
 .gradient-brand {
