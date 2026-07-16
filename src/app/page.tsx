@@ -7,7 +7,7 @@ import BottomNavigation from '@/components/ui/BottomNavigation';
 import FortuneListItem from '@/components/ui/FortuneListItem';
 import Avatar from '@/components/ui/Avatar';
 import ZodiacAsset from '@/components/ui/ZodiacAsset';
-import HomeTopNav from '@/components/home/HomeTopNav';
+import AuthTopNav from '@/components/common/AuthTopNav';
 import { ZODIAC_MONTH_LABELS } from '@/lib/zodiac';
 import type { ZodiacRankItem } from '@/types/fortune';
 
@@ -89,7 +89,7 @@ export default async function HomePage() {
 
   return (
     <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
-      <HomeTopNav />
+      <AuthTopNav />
 
       <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
         {dateLabel} 별자리 운세

@@ -244,5 +244,35 @@ export function useSavedVocabulary(userId: string | null) {
     [supabase, userId, refresh]
   );
 
-  return { savedWords, isSaved, saveWord, unsaveWord, isLoaded, loadError, refresh };
+  // 저장된 단어 화면의 삭제 선택 모드에서 여러 개를 한 번에 지울 때 사용한다.
+  // vocabulary_id가 아니라 saved_vocabulary 행 자체의 id(SavedWord.id)로 지운다.
+  const unsaveWords = useCallback(
+    async (savedWordIds: string[]): Promise<UnsaveOutcome> => {
+      if (!userId || savedWordIds.length === 0) {
+        return { status: 'error', error: 'not_logged_in' };
+      }
+
+      const { error } = await supabase
+        .from('saved_vocabulary')
+        .delete()
+        .eq('user_id', userId)
+        .in('id', savedWordIds);
+
+      if (error) {
+        console.error('[useSavedVocabulary] unsaveWords failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        return { status: 'error', error: 'unsave_failed' };
+      }
+
+      await refresh();
+      return { status: 'removed' };
+    },
+    [supabase, userId, refresh]
+  );
+
+  return { savedWords, isSaved, saveWord, unsaveWord, unsaveWords, isLoaded, loadError, refresh };
 }

@@ -1,12 +1,15 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import TopNavigation from '@/components/ui/TopNavigation';
 import Logo from '@/components/ui/Logo';
 import { useAuth } from '@/hooks/useAuth';
 
-export default function HomeTopNav() {
+// 홈과 저장된 단어 화면이 공유하는 인증 상태 기반 상단 내비게이션.
+// 로그인 후에는 로그인 버튼을 눌렀던 화면으로 그대로 돌아온다.
+export default function AuthTopNav() {
   const router = useRouter();
+  const pathname = usePathname();
   const { isLoggedIn, isLoading, signInWithGoogle } = useAuth();
 
   // 인증 상태 확인 전에는 로그인/프로필 버튼을 그리지 않는다.
@@ -26,5 +29,5 @@ export default function HomeTopNav() {
     return <TopNavigation variant="authenticated" onProfileClick={() => router.push('/profile')} />;
   }
 
-  return <TopNavigation variant="guest" onLoginClick={() => signInWithGoogle('/')} />;
+  return <TopNavigation variant="guest" onLoginClick={() => signInWithGoogle(pathname)} />;
 }

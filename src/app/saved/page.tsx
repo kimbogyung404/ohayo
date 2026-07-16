@@ -3,47 +3,95 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
-import FlashCard from '@/components/vocabulary/FlashCard';
-import FlashCardNavigation from '@/components/vocabulary/FlashCardNavigation';
+import AuthTopNav from '@/components/common/AuthTopNav';
+import VocabCard from '@/components/ui/VocabCard';
+import Button from '@/components/ui/Button';
 import EmptyState from '@/components/common/EmptyState';
 import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import BottomNavigation from '@/components/ui/BottomNavigation';
+import type { SavedWord } from '@/types/vocabulary';
+
+// 이 프로젝트에 별도의 TTS 유틸이 없어 브라우저 내장 Web Speech API로 최소 구현한다.
+function speak(text: string) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ja-JP';
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
 
 export default function SavedPage() {
-  const { user, isLoggedIn, isLoading: isAuthLoading, signOut } = useAuth();
-  const { savedWords, unsaveWord, isLoaded, loadError, refresh } = useSavedVocabulary(
+  const { user, isLoggedIn, isLoading: isAuthLoading } = useAuth();
+  const { savedWords, unsaveWords, isLoaded, loadError, refresh } = useSavedVocabulary(
     user?.id ?? null
   );
-  const [currentIndex, setCurrentIndex] = useState(0);
   const { showToast } = useToast();
 
-  const handleUnsave = async (vocabularyId: string) => {
-    const result = await unsaveWord(vocabularyId);
+  // 카드별 독립적인 뒤집힘 상태 (삭제 모드가 아닐 때만 의미가 있다)
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const toggleReveal = (id: string) => {
+    setRevealedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handlePlayAudio = (item: SavedWord) => {
+    speak(item.vocabulary.reading || item.vocabulary.surfaceForm);
+  };
+
+  const enterDeleteMode = () => {
+    setDeleteMode(true);
+    setSelectedIds(new Set());
+  };
+
+  const cancelDeleteMode = () => {
+    setDeleteMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleDeleteRequest = async () => {
+    if (selectedIds.size === 0 || isDeleting) return;
+
+    const confirmed = window.confirm(`선택한 단어 ${selectedIds.size}개를 삭제할까요?`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    const result = await unsaveWords([...selectedIds]);
+    setIsDeleting(false);
+
     if (result.status !== 'removed') {
-      showToast('저장 해제에 실패했어요. 다시 시도해 주세요.', 'error');
+      showToast('삭제하지 못했어요. 다시 시도해 주세요.', 'error');
       return;
     }
-    showToast('저장을 해제했어요.', 'info');
-    // 마지막 카드 삭제 시 이전 카드로 이동
-    if (currentIndex > 0 && currentIndex >= savedWords.length - 1) {
-      setCurrentIndex((prev) => prev - 1);
-    }
+
+    showToast('선택한 단어를 삭제했어요.', 'info');
+    setSelectedIds(new Set());
+    setDeleteMode(false);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    showToast('로그아웃했어요.', 'info');
-  };
-
-  // 로그인 상태 확인 중
+  // 인증 상태 확인 중
   if (isAuthLoading) {
     return (
-      <div className="page-content-with-bottom-nav">
-        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
-          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-        </header>
+      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+        <AuthTopNav />
         <LoadingState />
         <BottomNavigation activeItem="saved" />
       </div>
@@ -53,14 +101,12 @@ export default function SavedPage() {
   // 비로그인 상태
   if (!isLoggedIn) {
     return (
-      <div className="page-content-with-bottom-nav">
-        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
-          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-        </header>
+      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+        <AuthTopNav />
         <EmptyState
           icon="📚"
           title="로그인하면 단어를 저장할 수 있어요"
-          description="Google 계정으로 로그인하면 저장한 단어를 플래시카드로 복습하고 다른 기기에서도 이어서 학습할 수 있어요."
+          description="Google 계정으로 로그인하면 저장한 단어를 다시 복습하고 다른 기기에서도 이어서 학습할 수 있어요."
           actionLabel="운세 보러 가기"
           actionHref="/"
         />
@@ -72,10 +118,8 @@ export default function SavedPage() {
   // 저장 단어 조회 중
   if (!isLoaded) {
     return (
-      <div className="page-content-with-bottom-nav">
-        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
-          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-        </header>
+      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+        <AuthTopNav />
         <LoadingState />
         <BottomNavigation activeItem="saved" />
       </div>
@@ -85,10 +129,8 @@ export default function SavedPage() {
   // 조회 실패
   if (loadError) {
     return (
-      <div className="page-content-with-bottom-nav">
-        <header className="px-[var(--page-padding-x)] pt-8 pb-4">
-          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-        </header>
+      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+        <AuthTopNav />
         <ErrorState
           title="저장한 단어를 불러오지 못했어요"
           description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
@@ -102,22 +144,13 @@ export default function SavedPage() {
   // 저장 단어 없음
   if (savedWords.length === 0) {
     return (
-      <div className="page-content-with-bottom-nav">
-        <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
-          <div>
-            <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-            <p className="text-caption text-[var(--text-tertiary)] mt-1">
-              저장한 단어 0개
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1 py-1"
-          >
-            로그아웃
-          </button>
-        </header>
+      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+        <AuthTopNav />
+        <div className="px-[var(--page-padding-x)] pt-6">
+          <h1 className="text-h1 text-[var(--text-primary)]">
+            저장된 단어 <span className="text-[var(--text-tertiary)]">0개</span>
+          </h1>
+        </div>
         <EmptyState
           icon="✨"
           title="아직 저장한 단어가 없어요"
@@ -130,41 +163,86 @@ export default function SavedPage() {
     );
   }
 
-  const currentWord = savedWords[currentIndex];
+  const deleteButtonLabel = !deleteMode
+    ? '단어 삭제하기'
+    : selectedIds.size > 0
+      ? `${selectedIds.size}개 삭제하기`
+      : '삭제하기';
 
   return (
-    <div className="page-content-with-bottom-nav">
+    <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <AuthTopNav />
+
       {/* 헤더 */}
-      <header className="px-[var(--page-padding-x)] pt-8 pb-4 flex items-start justify-between">
-        <div>
-          <h1 className="text-h1 text-[var(--text-primary)]">저장한 단어</h1>
-          <p className="text-caption text-[var(--text-tertiary)] mt-0.5">
-            총 {savedWords.length}개
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1 py-1"
-        >
-          로그아웃
-        </button>
-      </header>
+      <div className="flex items-start justify-between px-[var(--page-padding-x)] pt-6">
+        <h1 className="text-h1 text-[var(--text-primary)]">
+          저장된 단어 <span className="text-[var(--text-tertiary)]">{savedWords.length}개</span>
+        </h1>
 
-      {/* 플래시카드 내비게이션 (상단) — 현재 위치 표시를 위해 카드가 1개여도 항상 렌더링 */}
-      <FlashCardNavigation
-        current={currentIndex}
-        total={savedWords.length}
-        onPrev={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-        onNext={() => setCurrentIndex((prev) => Math.min(savedWords.length - 1, prev + 1))}
-      />
-
-      {/* 플래시카드 */}
-      {currentWord && (
-        <div className="pt-2 pb-8">
-          <FlashCard word={currentWord} onUnsave={handleUnsave} />
+        <div className="flex flex-col items-end gap-1">
+          {deleteMode && (
+            <button
+              type="button"
+              onClick={cancelDeleteMode}
+              className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1"
+            >
+              취소
+            </button>
+          )}
+          <Button
+            hierarchy="primary"
+            size="small"
+            disabled={deleteMode && selectedIds.size === 0}
+            onClick={deleteMode ? handleDeleteRequest : enterDeleteMode}
+          >
+            {deleteButtonLabel}
+          </Button>
         </div>
-      )}
+      </div>
+
+      {/* 저장 단어 카드 목록 */}
+      <div className="space-y-4 px-[var(--page-padding-x)] py-6">
+        {savedWords.map((item) => {
+          if (deleteMode) {
+            return (
+              <VocabCard
+                key={item.id}
+                mode="select"
+                selected={selectedIds.has(item.id)}
+                word={item.vocabulary.surfaceForm}
+                meaning={item.vocabulary.meaning}
+                onSelect={() => toggleSelect(item.id)}
+                onPlayAudio={() => handlePlayAudio(item)}
+              />
+            );
+          }
+
+          if (revealedIds.has(item.id)) {
+            return (
+              <VocabCard
+                key={item.id}
+                mode="flip"
+                revealed
+                word={item.vocabulary.surfaceForm}
+                meaning={item.vocabulary.meaning}
+                onFlip={() => toggleReveal(item.id)}
+                onPlayAudio={() => handlePlayAudio(item)}
+              />
+            );
+          }
+
+          return (
+            <VocabCard
+              key={item.id}
+              mode="flip"
+              revealed={false}
+              word={item.vocabulary.surfaceForm}
+              onFlip={() => toggleReveal(item.id)}
+            />
+          );
+        })}
+      </div>
+
       <BottomNavigation activeItem="saved" />
     </div>
   );
