@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateFortuneStudyData } from '@/lib/ai/gemini';
-import { validateAiResult, buildSegments } from '@/lib/ai/validation';
+import { validateAiResult, buildSegments, buildKoreanSegments } from '@/lib/ai/validation';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // M5 일본어 학습 데이터 생성. CRON_SECRET을 검증한 요청만 실행한다.
@@ -22,6 +22,7 @@ interface PendingFortune {
   zodiac_id: string;
   rank: number;
   original_text: string;
+  lucky_item: string;
   date: string;
 }
 
@@ -32,7 +33,7 @@ async function processFortune(
   const dateNoDash = fortune.date.replaceAll('-', '');
 
   // 1. Gemini 응답 생성
-  const geminiResult = await generateFortuneStudyData(fortune.original_text);
+  const geminiResult = await generateFortuneStudyData(fortune.original_text, fortune.lucky_item);
   if (!geminiResult.ok) {
     await supabase
       .from('fortunes')
@@ -57,7 +58,10 @@ async function processFortune(
     surfaceForm: v.surfaceForm,
     reading: v.reading,
     meaning: v.meaning,
+    koreanText: v.koreanText,
     startIndex: v.startIndex,
+    koreanStartIndex: v.koreanStartIndex,
+    luckyItemKoStartIndex: v.luckyItemKoStartIndex,
   }));
 
   const { segments, reconstructed } = buildSegments(fortune.original_text, vocabWithIds);
@@ -68,6 +72,63 @@ async function processFortune(
       .update({ ai_status: 'failed', ai_error_message: 'segments reconstruction mismatch' })
       .eq('id', fortune.id);
     return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: 'segments reconstruction mismatch' };
+  }
+
+  // 3-1. 한국어 세그먼트도 동일하게 결정론적으로 조립하고, 원문(koreanTranslation/
+  // luckyItemKo)과 글자 단위로 완전히 일치하는지 다시 확인한다.
+  const koreanPlacements = vocabWithIds
+    .filter((v) => v.koreanStartIndex !== null)
+    .map((v) => ({ vocabularyId: v.vocabularyId, koreanText: v.koreanText, startIndex: v.koreanStartIndex as number }));
+  const { segments: koreanSegments, reconstructed: koreanReconstructed } = buildKoreanSegments(
+    validation.data.koreanTranslation,
+    koreanPlacements
+  );
+  if (koreanReconstructed !== validation.data.koreanTranslation) {
+    await supabase
+      .from('fortunes')
+      .update({ ai_status: 'failed', ai_error_message: 'koreanSegments reconstruction mismatch' })
+      .eq('id', fortune.id);
+    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: 'koreanSegments reconstruction mismatch' };
+  }
+
+  const luckyItemKoPlacements = vocabWithIds
+    .filter((v) => v.luckyItemKoStartIndex !== null)
+    .map((v) => ({
+      vocabularyId: v.vocabularyId,
+      koreanText: v.koreanText,
+      startIndex: v.luckyItemKoStartIndex as number,
+    }));
+  const { segments: luckyItemKoSegments, reconstructed: luckyItemKoReconstructed } = buildKoreanSegments(
+    validation.data.luckyItemKo,
+    luckyItemKoPlacements
+  );
+  if (luckyItemKoReconstructed !== validation.data.luckyItemKo) {
+    await supabase
+      .from('fortunes')
+      .update({ ai_status: 'failed', ai_error_message: 'luckyItemKoSegments reconstruction mismatch' })
+      .eq('id', fortune.id);
+    return {
+      zodiacId: fortune.zodiac_id,
+      rank: fortune.rank,
+      status: 'failed',
+      reason: 'luckyItemKoSegments reconstruction mismatch',
+    };
+  }
+
+  // 3-2. 핵심 단어 3개가 두 섹션(koreanSegments, luckyItemKoSegments) 중 최소 한 곳에는
+  // 실제로 연결됐는지 최종 확인한다(개별 vocab 검증에서 이미 보장되지만 방어적으로 재확인).
+  const connectedVocabularyIds = new Set([
+    ...koreanPlacements.map((p) => p.vocabularyId),
+    ...luckyItemKoPlacements.map((p) => p.vocabularyId),
+  ]);
+  const unconnected = vocabWithIds.filter((v) => !connectedVocabularyIds.has(v.vocabularyId));
+  if (unconnected.length > 0) {
+    const reason = `vocabulary not connected to any Korean segment: ${unconnected.map((v) => v.surfaceForm).join(', ')}`;
+    await supabase
+      .from('fortunes')
+      .update({ ai_status: 'failed', ai_error_message: reason.slice(0, 300) })
+      .eq('id', fortune.id);
+    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason };
   }
 
   const vocabularyIds = vocabWithIds.map((v) => v.vocabularyId);
@@ -122,6 +183,9 @@ async function processFortune(
       reading_text: validation.data.readingText,
       korean_translation: validation.data.koreanTranslation,
       segments,
+      korean_segments: koreanSegments,
+      lucky_item_ko: validation.data.luckyItemKo,
+      lucky_item_ko_segments: luckyItemKoSegments,
       ai_status: 'success',
       ai_error_message: null,
     })
@@ -164,7 +228,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('fortunes')
-    .select('id, zodiac_id, rank, original_text, date')
+    .select('id, zodiac_id, rank, original_text, lucky_item, date')
     .eq('date', date)
     .in('ai_status', statuses)
     .order('rank', { ascending: true });

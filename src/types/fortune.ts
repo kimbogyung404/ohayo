@@ -19,6 +19,13 @@ export interface Segment {
   vocabularyId: string | null;
 }
 
+// 한국어 문장 조각(korean_segments, lucky_item_ko_segments 배열의 각 요소).
+// text 세그먼트는 항상 한국어 그대로 표시하고, vocabulary 세그먼트는 확인 여부에 따라
+// surfaceForm(일본어, 미확인)과 koreanText(한국어 활용형, 확인 후)를 프론트에서 토글한다.
+export type KoreanSegment =
+  | { type: 'text'; text: string }
+  | { type: 'vocabulary'; vocabularyId: string; koreanText: string };
+
 // 핵심 단어
 export interface Vocabulary {
   id: string;
@@ -41,6 +48,9 @@ export interface Fortune {
   koreanTranslation: string;
   luckyItem: string;
   segments: Segment[];
+  koreanSegments: KoreanSegment[] | null;       // 백필 전이거나 생성 실패 시 null
+  luckyItemKo: string | null;                   // 한국어 번역 데이터가 없으면 null
+  luckyItemKoSegments: KoreanSegment[] | null;   // 백필 전이거나 생성 실패 시 null
   vocabulary: Vocabulary[];
   sourceUrl: string;
   sourceDate: string;     // 원본 페이지 날짜

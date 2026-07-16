@@ -4,6 +4,15 @@ import Icon from './Icon';
 
 type VocabCardProps =
   | {
+      // 상세 학습 화면의 단어 오버레이 전용: 뒤집기 없이 항상 앞면만 보여준다
+      // (일본어 단어 + 읽는 법 + 발음 듣기, 뜻은 표시하지 않는다).
+      mode: 'front';
+      word: string;
+      reading?: string;
+      onPlayAudio: () => void;
+      className?: string;
+    }
+  | {
       mode: 'flip';
       revealed: false;
       word: string;
@@ -23,14 +32,56 @@ type VocabCardProps =
       mode: 'select';
       selected: boolean;
       word: string;
+      reading?: string;
       meaning: string;
       onSelect: () => void;
       onPlayAudio: () => void;
       className?: string;
     };
 
+// 발음 듣기 버튼: 아이콘+문구를 유지한 채 카드 우측으로 정렬한다.
+// 부모가 flex flex-col일 때 self-end로 교차축(가로) 끝에 붙는다.
+function PlayAudioButton({ onPlayAudio }: { onPlayAudio: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPlayAudio}
+      aria-label="발음 듣기"
+      className="mt-1 flex shrink-0 items-center gap-1 self-end"
+    >
+      <Icon name="volume" size={24} className="text-[var(--brand-primary)]" />
+      <span className="text-caption text-[var(--text-brand)]">발음 듣기</span>
+    </button>
+  );
+}
+
 export default function VocabCard(props: VocabCardProps) {
   const rootClassName = props.className ?? '';
+
+  if (props.mode === 'front') {
+    const { word, reading, onPlayAudio } = props;
+    return (
+      <div
+        className={[
+          'flex w-full min-h-[132px] flex-col items-center gap-3',
+          'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--color-white)] p-5',
+          rootClassName,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
+          {word}
+        </p>
+        {reading && (
+          <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
+            {reading}
+          </p>
+        )}
+        <PlayAudioButton onPlayAudio={onPlayAudio} />
+      </div>
+    );
+  }
 
   if (props.mode === 'flip' && !props.revealed) {
     return (
@@ -57,11 +108,11 @@ export default function VocabCard(props: VocabCardProps) {
   }
 
   if (props.mode === 'select') {
-    const { selected, word, meaning, onSelect, onPlayAudio } = props;
+    const { selected, word, reading, meaning, onSelect, onPlayAudio } = props;
     return (
       <div
         className={[
-          'relative w-full min-h-[132px] rounded-[var(--radius-lg)] bg-[var(--color-white)] pl-5 pr-3 py-5',
+          'relative flex w-full min-h-[132px] flex-col rounded-[var(--radius-lg)] bg-[var(--color-white)] pl-5 pr-3 py-5',
           selected ? 'border border-[var(--border-brand)]' : 'border-[1.5px] border-[var(--border-default)]',
           rootClassName,
         ]
@@ -77,6 +128,11 @@ export default function VocabCard(props: VocabCardProps) {
           <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
             {word}
           </p>
+          {reading && (
+            <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
+              {reading}
+            </p>
+          )}
           <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaning}</p>
           <Icon
             name="check"
@@ -89,15 +145,7 @@ export default function VocabCard(props: VocabCardProps) {
           />
         </button>
 
-        <button
-          type="button"
-          onClick={onPlayAudio}
-          aria-label="발음 듣기"
-          className="mt-1 flex items-center gap-1"
-        >
-          <Icon name="volume" size={24} className="text-[var(--brand-primary)]" />
-          <span className="text-caption text-[var(--text-brand)]">발음 듣기</span>
-        </button>
+        <PlayAudioButton onPlayAudio={onPlayAudio} />
       </div>
     );
   }

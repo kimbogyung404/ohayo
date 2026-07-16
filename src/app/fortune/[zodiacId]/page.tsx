@@ -5,11 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getFortuneByZodiac, getLatestReadyDate } from '@/lib/fortune/queries';
 import { getZodiac } from '@/lib/zodiac';
-import { buildLuckyItemSegments } from '@/lib/luckyItemSegments';
 import { speak } from '@/lib/speak';
-import SegmentedText from '@/components/fortune/SegmentedText';
+import KoreanSegmentedText from '@/components/fortune/KoreanSegmentedText';
 import VocabCardOverlay from '@/components/fortune/VocabCardOverlay';
-import SourceNotice from '@/components/fortune/SourceNotice';
 import LoginPromptSheet from '@/components/auth/LoginPromptSheet';
 import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
@@ -17,6 +15,7 @@ import TopNavigation from '@/components/ui/TopNavigation';
 import VocabCard from '@/components/ui/VocabCard';
 import Button from '@/components/ui/Button';
 import Tooltip from '@/components/ui/Tooltip';
+import StickyActionBar from '@/components/ui/StickyActionBar';
 import Icon from '@/components/ui/Icon';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
@@ -48,8 +47,10 @@ export default function FortuneDetailPage() {
   const [step, setStep] = useState<LearningStep>('study');
   const [checkedWordIds, setCheckedWordIds] = useState<Set<string>>(new Set());
   const [activeWordId, setActiveWordId] = useState<string | null>(null);
-  const [overlayRevealed, setOverlayRevealed] = useState(false);
-  const [translationVisible, setTranslationVisible] = useState(false);
+  // 같은 단어를 다시 눌러도 3초 자동 종료 타이머가 재시작되도록 하는 카운터.
+  // activeWordId만으로는 같은 값으로 다시 set할 때 React가 재렌더를 스킵해
+  // 아래 useEffect가 재실행되지 않는다.
+  const [openToken, setOpenToken] = useState(0);
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
@@ -95,13 +96,6 @@ export default function FortuneDetailPage() {
     };
   }, [zodiacId, zodiac, reloadKey]);
 
-  // luckyItem에는 originalText 같은 사전 계산 segments가 없어(DB/AI 파이프라인 미변경),
-  // vocabulary.surfaceForm과 정확히 일치하는 부분만 런타임에 하이라이트로 변환한다.
-  const luckyItemSegments = useMemo(
-    () => (fortune ? buildLuckyItemSegments(fortune.luckyItem, fortune.vocabulary) : []),
-    [fortune]
-  );
-
   const requiredWordIds = useMemo(
     () => new Set((fortune?.vocabulary ?? []).map((word) => word.id)),
     [fortune]
@@ -136,9 +130,22 @@ export default function FortuneDetailPage() {
     });
   }, [isLoggedIn, zodiacId]);
 
+  // 단어 카드 오버레이 3초 자동 종료. activeWordId(와 openToken) 변경마다 새로
+  // 실행되며, cleanup이 이전 타이머를 정리한다 — 그래서 새 단어를 열거나, 같은
+  // 단어를 다시 열거나, 수동으로 닫거나, 언마운트될 때 모두 정확히 하나의
+  // 타이머만 살아있다. Strict Mode의 mount→cleanup→mount 이중 실행도 동일한
+  // 이유로 안전하다(첫 번째 타이머가 cleanup에서 즉시 정리된다).
+  useEffect(() => {
+    if (activeWordId === null) return;
+    const timer = setTimeout(() => {
+      setActiveWordId(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [activeWordId, openToken]);
+
   const openWordOverlay = (vocabularyId: string) => {
     setActiveWordId(vocabularyId);
-    setOverlayRevealed(false);
+    setOpenToken((t) => t + 1);
     // Set이라 이미 들어있는 id를 다시 추가해도 크기가 늘지 않는다 —
     // 같은 단어를 여러 위치에서 눌러도 확인 개수가 한 번만 증가하는 이유.
     setCheckedWordIds((prev) => {
@@ -234,22 +241,27 @@ export default function FortuneDetailPage() {
     notFound();
   }
 
-  // ─── complete 단계: 헤더 없이 완료 안내만 표시 ───
+  // ─── complete 단계: 헤더 없이 완료 안내만 표시. 버튼은 StickyActionBar로 하단 고정 ───
   if (step === 'complete') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 px-[var(--page-padding-x)] py-24 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand-primary)]">
-          <Icon name="check" size={32} className="text-[var(--text-inverse)]" />
+      <div>
+        <div className="page-content-with-sticky-cta flex flex-col items-center justify-center gap-4 px-[var(--page-padding-x)] py-24 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand-primary)]">
+            <Icon name="check" size={32} className="text-[var(--text-inverse)]" />
+          </div>
+          <p className="text-h2 text-[var(--text-primary)]">단어 저장이 완료됐어요!</p>
         </div>
-        <p className="text-h2 text-[var(--text-primary)]">단어 저장이 완료됐어요!</p>
-        <div className="mt-4 flex w-full gap-3">
-          <Button hierarchy="secondary" size="medium" fullWidth onClick={() => setStep('study')}>
-            운세로 돌아가기
-          </Button>
-          <Button hierarchy="primary" size="medium" fullWidth onClick={() => router.push('/saved')}>
-            저장된 단어 보기
-          </Button>
-        </div>
+
+        <StickyActionBar>
+          <div className="flex w-full gap-3">
+            <Button hierarchy="secondary" size="medium" fullWidth onClick={() => setStep('study')}>
+              운세로 돌아가기
+            </Button>
+            <Button hierarchy="primary" size="medium" fullWidth onClick={() => router.push('/saved')}>
+              저장된 단어 보기
+            </Button>
+          </div>
+        </StickyActionBar>
       </div>
     );
   }
@@ -262,8 +274,8 @@ export default function FortuneDetailPage() {
       <div>
         <TopNavigation variant="detail" title="단어 복습하기" onBack={() => setStep('study')} />
 
-        <div className="px-[var(--page-padding-x)] py-6">
-          <p className="text-b1-semibold text-[var(--text-brand)]">오늘의 단어 학습 완료!</p>
+        <div className="page-content-with-sticky-cta px-[var(--page-padding-x)] py-6">
+          <p className="text-b1-semibold text-[var(--text-brand)]">오늘의 단어를 복습해보세요</p>
           <p className="text-b2-regular text-[var(--text-secondary)] mt-1 mb-6">
             방금 공부한 단어들을 단어장에 저장할까요?
           </p>
@@ -277,6 +289,7 @@ export default function FortuneDetailPage() {
                     mode="select"
                     selected={alreadySaved || selectedWordIds.has(vocab.id)}
                     word={vocab.surfaceForm}
+                    reading={vocab.reading}
                     meaning={vocab.meaning}
                     onSelect={alreadySaved ? () => {} : () => toggleSelectWord(vocab.id)}
                     onPlayAudio={() => speak(vocab.reading || vocab.surfaceForm)}
@@ -290,20 +303,22 @@ export default function FortuneDetailPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 px-[var(--page-padding-x)] pb-8">
-          <Button hierarchy="secondary" size="medium" className="shrink-0" onClick={() => setStep('study')}>
-            종료하기
-          </Button>
-          <Button
-            hierarchy="primary"
-            size="medium"
-            fullWidth
-            disabled={selectedWordIds.size === 0 || isSaving}
-            onClick={handleSaveSelected}
-          >
-            {saveLabel}
-          </Button>
-        </div>
+        <StickyActionBar>
+          <div className="flex w-full gap-3">
+            <Button hierarchy="secondary" size="medium" className="shrink-0" onClick={() => setStep('study')}>
+              종료하기
+            </Button>
+            <Button
+              hierarchy="primary"
+              size="medium"
+              fullWidth
+              disabled={selectedWordIds.size === 0 || isSaving}
+              onClick={handleSaveSelected}
+            >
+              {saveLabel}
+            </Button>
+          </div>
+        </StickyActionBar>
 
         <LoginPromptSheet
           isOpen={showLoginSheet}
@@ -314,8 +329,32 @@ export default function FortuneDetailPage() {
     );
   }
 
-  // ─── study 단계 ───
-  const translationButtonLabel = isAllChecked ? '한국어 해석 보기' : `한국어 해석 보기 ${checkedCount}/3`;
+  // ─── study 단계: 한국어 세그먼트 데이터가 아직 없는(백필/생성 실패) 운세는
+  // 상호작용 없는 준비 중 안내만 보여준다. 프론트에서 임의로 일본어 원문
+  // 런타임 매칭으로 대체하지 않는다 — koreanSegments/luckyItemKoSegments는
+  // 전부 M5가 DB에 저장해 둔 값이어야 한다. ───
+  const { koreanSegments, luckyItemKoSegments, luckyItemKo } = fortune;
+
+  if (koreanSegments === null || luckyItemKoSegments === null || luckyItemKo === null) {
+    return (
+      <div>
+        <TopNavigation
+          variant="detail"
+          title={`${fortune.rank}위 ${fortune.zodiacKorean}`}
+          onBack={() => router.push('/')}
+        />
+        <div className="flex flex-col items-center justify-center gap-3 px-[var(--page-padding-x)] py-24 text-center">
+          <p className="text-b1-medium text-[var(--text-primary)]">한국어 학습 데이터를 준비하고 있어요.</p>
+          <p className="text-b2-regular text-[var(--text-tertiary)]">잠시 후 다시 확인해 주세요.</p>
+          <Button hierarchy="secondary" size="medium" onClick={() => router.push('/')} className="mt-2">
+            홈으로 돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const ctaLabel = isAllChecked ? '확인한 단어 복습하기' : `단어 확인하기 ${checkedCount}/3`;
 
   return (
     <div>
@@ -325,92 +364,50 @@ export default function FortuneDetailPage() {
         onBack={() => router.push('/')}
       />
 
-      <div className="px-[var(--page-padding-x)] py-6">
-        {/* 일본어 운세 원문 섹션 */}
+      <div className="page-content-with-sticky-cta px-[var(--page-padding-x)] py-6">
+        {/* 오늘의 운세 — 한국어 본문, 핵심 단어 3개만 확인 전 일본어 */}
         <section aria-label="오늘의 운세" className="mb-6">
           <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
             1. 오늘의 운세
           </h2>
-          <SegmentedText
-            segments={fortune.segments}
+          <KoreanSegmentedText
+            segments={koreanSegments}
+            vocabulary={fortune.vocabulary}
             checkedWordIds={checkedWordIds}
             onWordClick={openWordOverlay}
           />
-          {translationVisible && (
-            <div className="mt-3 p-4 rounded-[var(--radius-lg)] bg-[var(--surface-subtle)]">
-              <p className="text-b2-medium text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
-                {fortune.koreanTranslation}
-              </p>
-            </div>
-          )}
         </section>
 
-        {/* 행운의 장소와 아이템 섹션 (런타임 문자열 매칭으로 하이라이트) */}
+        {/* 행운의 장소와 아이템 — 동일한 방식(DB에 저장된 한국어 세그먼트) */}
         <section aria-label="행운의 장소와 아이템" className="mb-6">
           <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
             2. 행운의 장소와 아이템
           </h2>
-          <SegmentedText
-            segments={luckyItemSegments}
+          <KoreanSegmentedText
+            segments={luckyItemKoSegments}
+            vocabulary={fortune.vocabulary}
             checkedWordIds={checkedWordIds}
             onWordClick={openWordOverlay}
           />
-          {/* 행운의 장소·아이템에 대응하는 실제 한국어 해석 필드가 아직 없어(originalText의
-              koreanTranslation 재사용 금지), 이 섹션에는 해석 박스를 표시하지 않는다. */}
         </section>
-
-        {/* 한국어 해석 보기 / 다음 단계 진입 */}
-        {!translationVisible ? (
-          <div className="flex flex-col items-center gap-2">
-            {!isAllChecked && (
-              <Tooltip>일본어 단어 3개를 확인하면 한국어 해석이 열려요</Tooltip>
-            )}
-            <Button
-              hierarchy="primary"
-              size="large"
-              fullWidth
-              disabled={!isAllChecked}
-              onClick={() => setTranslationVisible(true)}
-            >
-              {translationButtonLabel}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setTranslationVisible(false)}
-              className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1"
-            >
-              한국어 해석 가리기
-            </button>
-            <Button hierarchy="primary" size="large" fullWidth onClick={goToReview}>
-              다음
-            </Button>
-          </div>
-        )}
-
-        {/* 출처 및 비공식 서비스 안내 */}
-        <SourceNotice sourceDate={fortune.sourceDate} sourceUrl={fortune.sourceUrl} />
       </div>
 
-      {/* 단어 카드 오버레이 */}
+      {/* 단어 확인 진행 / 복습 진입 — 화면 최하단 고정. 3/3이어도 자동 이동하지 않고
+          사용자가 버튼을 눌러야 review로 넘어간다. */}
+      <StickyActionBar>
+        {!isAllChecked && <Tooltip>강조된 일본어 단어 3개를 눌러 뜻을 확인해보세요</Tooltip>}
+        <Button hierarchy="primary" size="large" fullWidth disabled={!isAllChecked} onClick={goToReview}>
+          {ctaLabel}
+        </Button>
+      </StickyActionBar>
+
+      {/* 단어 카드 오버레이 — 항상 앞면(단어+읽는 법+발음 듣기)만 표시, 뒤집기 없음, 3초 뒤 자동 종료 */}
       <VocabCardOverlay isOpen={activeWordId !== null} onClose={closeWordOverlay}>
-        {activeWord && !overlayRevealed && (
+        {activeWord && (
           <VocabCard
-            mode="flip"
-            revealed={false}
+            mode="front"
             word={activeWord.surfaceForm}
-            onFlip={() => setOverlayRevealed(true)}
-          />
-        )}
-        {activeWord && overlayRevealed && (
-          <VocabCard
-            mode="flip"
-            revealed
-            word={activeWord.surfaceForm}
-            meaning={activeWord.meaning}
-            onFlip={() => setOverlayRevealed(false)}
+            reading={activeWord.reading}
             onPlayAudio={() => speak(activeWord.reading || activeWord.surfaceForm)}
           />
         )}

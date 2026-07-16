@@ -200,6 +200,13 @@ body {
   padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
 }
 
+/* StickyActionBar(Tooltip + CTA 버튼)가 실제로 있는 화면에서만 적용하는 하단 콘텐츠 패딩.
+   Tooltip 유무에 따라 바의 실제 높이가 바뀌므로, 두 줄 Tooltip이 떠 있는 상태 기준의
+   여유값을 고정으로 둔다(값이 바뀌어 콘텐츠가 가려지는 것을 방지). */
+.page-content-with-sticky-cta {
+  padding-bottom: calc(180px + env(safe-area-inset-bottom));
+}
+
 /* ─────────────────────────────────────────
    Typography Utilities
 ───────────────────────────────────────── */

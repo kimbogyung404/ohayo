@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Fortune, Segment, Vocabulary, ZodiacId, ZodiacRankItem } from '@/types/fortune';
+import type { Fortune, KoreanSegment, Segment, Vocabulary, ZodiacId, ZodiacRankItem } from '@/types/fortune';
 
 // 서버 클라이언트(쿠키 기반)와 브라우저 클라이언트 양쪽에서 모두 쓸 수 있도록
 // SupabaseClient를 인자로 받는다. fortunes/vocabulary는 공개 SELECT RLS라
@@ -17,6 +17,9 @@ interface FortuneRow {
   korean_translation: string | null;
   lucky_item: string | null;
   segments: Segment[] | null;
+  korean_segments: KoreanSegment[] | null;
+  lucky_item_ko: string | null;
+  lucky_item_ko_segments: KoreanSegment[] | null;
   source_url: string | null;
   ai_status: 'pending' | 'success' | 'failed';
 }
@@ -86,7 +89,7 @@ export async function getFortuneByZodiac(
   const { data: fortuneRow, error: fortuneError } = await supabase
     .from('fortunes')
     .select(
-      'id, date, zodiac_id, zodiac_japanese, zodiac_korean, rank, original_text, reading_text, korean_translation, lucky_item, segments, source_url, ai_status'
+      'id, date, zodiac_id, zodiac_japanese, zodiac_korean, rank, original_text, reading_text, korean_translation, lucky_item, segments, korean_segments, lucky_item_ko, lucky_item_ko_segments, source_url, ai_status'
     )
     .eq('date', date)
     .eq('zodiac_id', zodiacId)
@@ -125,6 +128,10 @@ export async function getFortuneByZodiac(
     segments: row.segments && row.segments.length > 0
       ? row.segments
       : [{ text: row.original_text, vocabularyId: null }],
+    koreanSegments: row.korean_segments && row.korean_segments.length > 0 ? row.korean_segments : null,
+    luckyItemKo: row.lucky_item_ko ?? null,
+    luckyItemKoSegments:
+      row.lucky_item_ko_segments && row.lucky_item_ko_segments.length > 0 ? row.lucky_item_ko_segments : null,
     vocabulary,
     sourceUrl: row.source_url ?? '',
     sourceDate: row.date,
