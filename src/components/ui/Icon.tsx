@@ -7,6 +7,9 @@ import { ChevronRightIcon } from '@/components/icons/ChevronRightIcon';
 import { ChevronLeftIcon } from '@/components/icons/ChevronLeftIcon';
 import { CheckIcon } from '@/components/icons/CheckIcon';
 import { VolumeIcon } from '@/components/icons/VolumeIcon';
+import { SmileIcon } from '@/components/icons/SmileIcon';
+import { MehIcon } from '@/components/icons/MehIcon';
+import { FrownIcon } from '@/components/icons/FrownIcon';
 
 export type IconName =
   | 'folder'
@@ -16,7 +19,10 @@ export type IconName =
   | 'chevron-right'
   | 'chevron-left'
   | 'check'
-  | 'volume';
+  | 'volume'
+  | 'smile'
+  | 'meh'
+  | 'frown';
 
 export type IconVariant = 'outline' | 'filled';
 
@@ -31,6 +37,9 @@ const iconMap: Record<IconName, { outline: SvgComponent; filled?: SvgComponent }
   'chevron-left': { outline: ChevronLeftIcon },
   check: { outline: CheckIcon },
   volume: { outline: VolumeIcon },
+  smile: { outline: SmileIcon },
+  meh: { outline: MehIcon },
+  frown: { outline: FrownIcon },
 };
 
 type FilledIconName = 'folder' | 'star';

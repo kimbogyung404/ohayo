@@ -32,6 +32,23 @@ interface PendingReviewSave {
 type LoadStatus = 'loading' | 'ready' | 'not-found' | 'error';
 type LearningStep = 'study' | 'review' | 'complete';
 
+// complete 단계의 "오늘의 학습 피드백" — UI/로컬 state만 구현한다(저장/전송 없음).
+type LearningFeedback = 'helpful' | 'neutral' | 'unhelpful';
+
+const FEEDBACK_OPTIONS: { value: LearningFeedback; label: string; icon: 'smile' | 'meh' | 'frown' }[] = [
+  { value: 'helpful', label: '도움이 됐어요', icon: 'smile' },
+  { value: 'neutral', label: '보통이에요', icon: 'meh' },
+  { value: 'unhelpful', label: '아쉬웠어요', icon: 'frown' },
+];
+
+const UNHELPFUL_REASONS = [
+  { id: 'too-hard', label: '단어가 너무 어려웠어요' },
+  { id: 'reading-unclear', label: '읽는 법이 이해되지 않았어요' },
+  { id: 'meaning-insufficient', label: '뜻이나 설명이 부족했어요' },
+  { id: 'not-useful', label: '단어가 유용하지 않았어요' },
+  { id: 'review-tedious', label: '복습 과정이 번거로웠어요' },
+];
+
 export default function FortuneDetailPage() {
   const params = useParams();
   const zodiacId = params.zodiacId as ZodiacId;
@@ -53,6 +70,8 @@ export default function FortuneDetailPage() {
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
+  const [learningFeedback, setLearningFeedback] = useState<LearningFeedback | null>(null);
+  const [unhelpfulReasonIds, setUnhelpfulReasonIds] = useState<Set<string>>(new Set());
 
   const { user, isLoggedIn, signInWithGoogle } = useAuth();
   const { isSaved, saveWords } = useSavedVocabulary(user?.id ?? null);
@@ -173,6 +192,23 @@ export default function FortuneDetailPage() {
     });
   };
 
+  const selectLearningFeedback = (value: LearningFeedback) => {
+    setLearningFeedback(value);
+    // '아쉬웠어요'가 아닌 다른 항목으로 바꾸면 이유 영역을 숨기고 선택도 초기화한다.
+    if (value !== 'unhelpful') {
+      setUnhelpfulReasonIds(new Set());
+    }
+  };
+
+  const toggleUnhelpfulReason = (reasonId: string) => {
+    setUnhelpfulReasonIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(reasonId)) next.delete(reasonId);
+      else next.add(reasonId);
+      return next;
+    });
+  };
+
   const handleLoginStart = () => {
     signInWithGoogle(window.location.pathname);
   };
@@ -240,15 +276,90 @@ export default function FortuneDetailPage() {
     notFound();
   }
 
-  // ─── complete 단계: 헤더 없이 완료 안내만 표시. 버튼은 StickyActionBar로 하단 고정 ───
+  // ─── complete 단계: 헤더 없이 완료 안내 + 오늘의 학습 피드백을 표시.
+  // 버튼은 StickyActionBar로 하단 고정. 피드백은 UI/로컬 state만 다루며
+  // 어떤 선택을 하든 하지 않든 하단 버튼 동작에는 영향을 주지 않는다. ───
   if (step === 'complete') {
     return (
       <div>
-        <div className="page-content-with-sticky-cta flex flex-col items-center justify-center gap-4 px-[var(--page-padding-x)] py-24 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand-primary)]">
-            <Icon name="check" size={32} className="text-[var(--text-inverse)]" />
+        <div className="page-content-with-sticky-cta px-[var(--page-padding-x)]">
+          <div className="flex flex-col items-center justify-center gap-4 pt-24 pb-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand-primary)]">
+              <Icon name="check" size={32} className="text-[var(--text-inverse)]" />
+            </div>
+            <p className="text-h2 text-[var(--text-primary)]">단어 저장이 완료됐어요!</p>
           </div>
-          <p className="text-h2 text-[var(--text-primary)]">단어 저장이 완료됐어요!</p>
+
+          {/* 오늘의 학습 피드백 — 저장/전송 없이 이 화면 안에서만 상태를 관리한다 */}
+          <div className="pb-8">
+            <p className="text-b1-medium text-[var(--text-primary)] text-center mb-4">
+              오늘의 단어 학습이 도움이 되었나요?
+            </p>
+
+            <div
+              role="radiogroup"
+              aria-label="오늘의 단어 학습이 도움이 되었나요?"
+              className="grid grid-cols-3 gap-2"
+            >
+              {FEEDBACK_OPTIONS.map((option) => {
+                const active = learningFeedback === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => selectLearningFeedback(option.value)}
+                    className={[
+                      'flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-[var(--radius-md)] border-[1.5px] px-2 py-3',
+                      active
+                        ? 'border-[var(--border-brand)] bg-[var(--surface-brand)]'
+                        : 'border-[var(--border-default)] bg-[var(--color-white)]',
+                    ].join(' ')}
+                  >
+                    <Icon
+                      name={option.icon}
+                      size={28}
+                      aria-hidden="true"
+                      className={active ? 'text-[var(--brand-primary)]' : 'text-[var(--text-tertiary)]'}
+                    />
+                    <span
+                      className={[
+                        'text-caption',
+                        active ? 'text-[var(--text-brand)] font-semibold' : 'text-[var(--text-secondary)]',
+                      ].join(' ')}
+                    >
+                      {option.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {learningFeedback === 'unhelpful' && (
+              <fieldset className="animate-fade-in m-0 mt-6 border-0 p-0">
+                <legend className="text-b2-medium text-[var(--text-primary)] mb-3 p-0">
+                  어떤 점이 아쉬웠나요?
+                </legend>
+                <div className="flex flex-col gap-2">
+                  {UNHELPFUL_REASONS.map((reason) => (
+                    <label
+                      key={reason.id}
+                      className="flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[var(--radius-md)] border-[1.5px] border-[var(--border-default)] px-4 py-2 has-[:checked]:border-[var(--border-brand)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={unhelpfulReasonIds.has(reason.id)}
+                        onChange={() => toggleUnhelpfulReason(reason.id)}
+                        className="h-5 w-5 shrink-0 accent-[var(--brand-primary)]"
+                      />
+                      <span className="text-b2-regular text-[var(--text-primary)]">{reason.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+          </div>
         </div>
 
         <StickyActionBar>
