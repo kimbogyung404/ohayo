@@ -29,3 +29,20 @@ export const ZODIAC_MAP = new Map<ZodiacId, ZodiacInfo>(
 export function getZodiac(id: ZodiacId): ZodiacInfo | undefined {
   return ZODIAC_MAP.get(id);
 }
+
+// 별자리는 태어난 달로 정해지므로, 별자리 옆 "월" 표시는 오늘 날짜나 운세 기준일이
+// 아니라 항상 이 매핑을 따라야 한다.
+export const ZODIAC_MONTH_LABELS: Record<ZodiacId, string> = {
+  aquarius: '1월',
+  pisces: '2월',
+  aries: '3월',
+  taurus: '4월',
+  gemini: '5월',
+  cancer: '6월',
+  leo: '7월',
+  virgo: '8월',
+  libra: '9월',
+  scorpio: '10월',
+  sagittarius: '11월',
+  capricorn: '12월',
+};
