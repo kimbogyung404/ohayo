@@ -14,6 +14,11 @@ type UnsaveOutcome =
   | { status: 'removed' }
   | { status: 'error'; error: 'not_logged_in' | 'unsave_failed' };
 
+type BulkSaveOutcome =
+  | { status: 'saved'; savedCount: number }
+  | { status: 'duplicate' } // 전달받은 id가 전부 이미 저장되어 있었음
+  | { status: 'error'; error: 'not_logged_in' | 'save_failed' };
+
 interface SavedVocabularyRow {
   id: string;
   vocabulary_id: string;
@@ -218,6 +223,54 @@ export function useSavedVocabulary(userId: string | null) {
     [supabase, isSaved, refresh]
   );
 
+  // 상세 화면의 "단어 복습하기" 단계에서 선택한 단어 여러 개를 한 번에 저장할 때 사용한다.
+  // 이미 저장된 vocabulary_id는 insert 전에 걸러내 중복 저장을 막는다.
+  const saveWords = useCallback(
+    async (vocabularyIds: string[]): Promise<BulkSaveOutcome> => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const verifiedUserId = userData.user?.id ?? null;
+
+      if (userError || !verifiedUserId) {
+        return { status: 'error', error: 'not_logged_in' };
+      }
+
+      const idsToInsert = vocabularyIds.filter((id) => !isSaved(id));
+      if (idsToInsert.length === 0) {
+        return { status: 'duplicate' };
+      }
+
+      const { error } = await supabase
+        .from('saved_vocabulary')
+        .insert(idsToInsert.map((vocabularyId) => ({ user_id: verifiedUserId, vocabulary_id: vocabularyId })));
+
+      if (error) {
+        // 23505 = unique_violation: 동시 요청 등으로 idsToInsert 중 일부가 이미
+        // 저장되어 있던 경우. 여러 행을 한 번에 insert하는 문장은 한 행이라도 유니크
+        // 제약(user_id, vocabulary_id)에 걸리면 문장 전체가 롤백되므로, 이 호출 자체는
+        // 어떤 단어도 새로 저장하지 못했다 — idsToInsert가 지금 저장되어 있더라도 그건
+        // 동시에 들어온 다른 요청이 저장한 것이지 이 호출이 새로 저장한 것이 아니다.
+        // refresh로 화면 상태만 실제 DB와 동기화하고, 이 호출 기준으로는 새로 저장된
+        // 것이 없다고 확정할 수 있으므로 duplicate로 보고한다(호출부는 complete로
+        // 넘어가지 않고 review 단계를 유지한다).
+        if (error.code === '23505') {
+          await refresh();
+          return { status: 'duplicate' };
+        }
+        console.error('[useSavedVocabulary] saveWords failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        return { status: 'error', error: 'save_failed' };
+      }
+
+      await refresh();
+      return { status: 'saved', savedCount: idsToInsert.length };
+    },
+    [supabase, isSaved, refresh]
+  );
+
   const unsaveWord = useCallback(
     async (vocabularyId: string): Promise<UnsaveOutcome> => {
       if (!userId) return { status: 'error', error: 'not_logged_in' };
@@ -274,5 +327,5 @@ export function useSavedVocabulary(userId: string | null) {
     [supabase, userId, refresh]
   );
 
-  return { savedWords, isSaved, saveWord, unsaveWord, unsaveWords, isLoaded, loadError, refresh };
+  return { savedWords, isSaved, saveWord, saveWords, unsaveWord, unsaveWords, isLoaded, loadError, refresh };
 }
