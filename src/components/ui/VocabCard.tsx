@@ -14,15 +14,10 @@ type VocabCardProps =
       className?: string;
     }
   | {
+      // 앞면·뒷면을 항상 같은 영역에 겹쳐 렌더링하고 Y축으로 회전시켜 전환한다
+      // (VocabCard.tsx의 flip-card-* 유틸리티, globals.css 참고).
       mode: 'flip';
-      revealed: false;
-      word: string;
-      onFlip: () => void;
-      className?: string;
-    }
-  | {
-      mode: 'flip';
-      revealed: true;
+      revealed: boolean;
       word: string;
       meaning: string;
       onFlip: () => void;
@@ -42,12 +37,27 @@ type VocabCardProps =
 
 // 발음 듣기 버튼: 아이콘+문구를 유지한 채 카드 우측으로 정렬한다.
 // 부모가 flex flex-col일 때 self-end로 교차축(가로) 끝에 붙는다.
-function PlayAudioButton({ onPlayAudio }: { onPlayAudio: () => void }) {
+// stopPropagation: flip 뒷면처럼 카드 본문 클릭이 곧 상위 onClick(뒤집기)인 맥락에서,
+// 발음 듣기 클릭이 그 상위로 버블링되어 함께 뒤집히는 것을 막는다.
+// tabIndex: 회전으로 숨겨진 면 안의 버튼은 -1로 탭 순서에서 제외한다(aria-hidden 부모와 짝).
+function PlayAudioButton({
+  onPlayAudio,
+  stopPropagation = false,
+  tabIndex,
+}: {
+  onPlayAudio: () => void;
+  stopPropagation?: boolean;
+  tabIndex?: number;
+}) {
   return (
     <button
       type="button"
-      onClick={onPlayAudio}
+      onClick={(e) => {
+        if (stopPropagation) e.stopPropagation();
+        onPlayAudio();
+      }}
       aria-label="발음 듣기"
+      tabIndex={tabIndex}
       className="mt-1 flex shrink-0 items-center gap-1 self-end"
     >
       <Icon name="volume" size={24} className="text-[var(--brand-primary)]" />
@@ -87,27 +97,63 @@ export default function VocabCard(props: VocabCardProps) {
     );
   }
 
-  if (props.mode === 'flip' && !props.revealed) {
+  if (props.mode === 'flip') {
+    const { revealed, word, meaning, onFlip, onPlayAudio } = props;
     return (
-      <button
-        type="button"
-        onClick={props.onFlip}
-        aria-expanded={false}
-        className={[
-          'flex w-full min-h-[132px] flex-col items-center justify-center gap-3',
-          'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--surface-subtle)] p-5',
-          rootClassName,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
-          {props.word}
-        </p>
-        <p className="text-b2-medium text-left text-[var(--text-tertiary)]">
-          뜻을 떠올린 뒤, 카드를 뒤집어보세요
-        </p>
-      </button>
+      <div className={['flip-card-outer', rootClassName].filter(Boolean).join(' ')}>
+        <div className="flip-card-inner" data-revealed={revealed}>
+          {/* 앞면 */}
+          <button
+            type="button"
+            onClick={onFlip}
+            aria-expanded={revealed}
+            aria-hidden={revealed}
+            tabIndex={revealed ? -1 : 0}
+            className={[
+              'flip-card-face flip-card-front flex flex-col items-center justify-center gap-3',
+              'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--surface-subtle)] p-5',
+              revealed ? 'pointer-events-none' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
+              {word}
+            </p>
+            <p className="text-b2-medium text-left text-[var(--text-tertiary)]">
+              뜻을 떠올린 뒤, 카드를 뒤집어보세요
+            </p>
+          </button>
+
+          {/* 뒷면: 카드 본문(단어+뜻) 어디를 눌러도 뒤집히고, 발음 듣기만 stopPropagation으로 예외 처리한다 */}
+          <div
+            role="button"
+            tabIndex={revealed ? 0 : -1}
+            onClick={onFlip}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onFlip();
+              }
+            }}
+            aria-expanded={revealed}
+            aria-hidden={!revealed}
+            className={[
+              'flip-card-face flip-card-back flex flex-col cursor-pointer',
+              'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--color-white)] p-5',
+              !revealed ? 'pointer-events-none' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
+              {word}
+            </p>
+            <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaning}</p>
+            <PlayAudioButton onPlayAudio={onPlayAudio} stopPropagation tabIndex={revealed ? 0 : -1} />
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -153,35 +199,4 @@ export default function VocabCard(props: VocabCardProps) {
       </div>
     );
   }
-
-  // mode === 'flip' && revealed === true
-  const { word, meaning, onFlip, onPlayAudio } = props;
-  return (
-    <div
-      className={[
-        'relative w-full min-h-[132px] rounded-[var(--radius-lg)] bg-[var(--color-white)] p-5',
-        'border-[1.5px] border-[var(--border-default)]',
-        rootClassName,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      <button type="button" onClick={onFlip} aria-expanded={true} className="flex w-full flex-col gap-3">
-        <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
-          {word}
-        </p>
-        <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaning}</p>
-      </button>
-
-      <button
-        type="button"
-        onClick={onPlayAudio}
-        aria-label="발음 듣기"
-        className="mt-1 flex items-center gap-1"
-      >
-        <Icon name="volume" size={24} className="text-[var(--brand-primary)]" />
-        <span className="text-caption text-[var(--text-brand)]">발음 듣기</span>
-      </button>
-    </div>
-  );
 }

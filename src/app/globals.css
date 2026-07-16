@@ -262,6 +262,50 @@ body {
 }
 
 /* ─────────────────────────────────────────
+   VocabCard flip (mode="flip") — 앞면·뒷면을 같은 grid cell에 겹쳐 두고
+   Y축으로 회전시켜 전환한다. absolute+h:100% 대신 grid-area:1/1 겹침을 써서,
+   높이가 없는 부모에서 h-full이 깨지는 문제 없이 두 면 중 더 긴 콘텐츠
+   기준으로 카드 높이가 자연스럽게 정해진다(고정 height로 덮지 않는다).
+───────────────────────────────────────── */
+.flip-card-outer {
+  width: 100%;
+  perspective: 1000px;
+}
+
+.flip-card-inner {
+  display: grid;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 350ms ease-in-out;
+}
+
+.flip-card-face {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-height: 164px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-card-front {
+  transform: rotateY(0deg);
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+}
+
+.flip-card-inner[data-revealed='true'] {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-card-inner {
+    transition: none;
+  }
+}
+
+/* ─────────────────────────────────────────
    Fade In (3/3 달성 시 StickyActionBar 등장용 — 과도한 바운스·슬라이드 없이
    opacity만 부드럽게 전환하고, 아주 작은 translateY만 허용한다)
 ───────────────────────────────────────── */

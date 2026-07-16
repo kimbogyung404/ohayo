@@ -140,7 +140,8 @@ export default function SavedPage() {
         <AuthTopNav />
         <div className="px-[var(--page-padding-x)] pt-6">
           <h1 className="text-h1 text-[var(--text-primary)]">
-            저장된 단어 <span className="text-[var(--text-tertiary)]">0개</span>
+            저장된 단어{' '}
+            <span className="text-[var(--text-brand)]">0개</span>
           </h1>
         </div>
         <EmptyState
@@ -168,7 +169,8 @@ export default function SavedPage() {
       {/* 헤더 */}
       <div className="flex items-start justify-between px-[var(--page-padding-x)] pt-6">
         <h1 className="text-h1 text-[var(--text-primary)]">
-          저장된 단어 <span className="text-[var(--text-tertiary)]">{savedWords.length}개</span>
+          저장된 단어{' '}
+          <span className="text-[var(--text-brand)]">{savedWords.length}개</span>
         </h1>
 
         <div className="flex flex-col items-end gap-1">
@@ -209,27 +211,15 @@ export default function SavedPage() {
             );
           }
 
-          if (revealedIds.has(item.id)) {
-            return (
-              <VocabCard
-                key={item.id}
-                mode="flip"
-                revealed
-                word={item.vocabulary.surfaceForm}
-                meaning={item.vocabulary.meaning}
-                onFlip={() => toggleReveal(item.id)}
-                onPlayAudio={() => handlePlayAudio(item)}
-              />
-            );
-          }
-
           return (
             <VocabCard
               key={item.id}
               mode="flip"
-              revealed={false}
+              revealed={revealedIds.has(item.id)}
               word={item.vocabulary.surfaceForm}
+              meaning={item.vocabulary.meaning}
               onFlip={() => toggleReveal(item.id)}
+              onPlayAudio={() => handlePlayAudio(item)}
             />
           );
         })}
