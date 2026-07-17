@@ -16,6 +16,10 @@ function init(): boolean {
       autocapture: false,
       persistence: 'localStorage',
       ip: false,
+      // Web Session Replay 활성화. 마스킹은 Mixpanel 기본 정책을 그대로 따른다
+      // (record_mask_all_text/record_mask_all_inputs 등 전역 마스킹 해제 옵션은
+      // 건드리지 않는다 — 이메일/이름/Google 계정 정보/토큰/사용자 입력값 노출 방지).
+      record_sessions_percent: 100,
     });
     initialized = true;
   } catch {
