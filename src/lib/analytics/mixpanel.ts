@@ -9,7 +9,16 @@ let initialized = false;
 
 function init(): boolean {
   if (initialized) return true;
-  if (!MIXPANEL_TOKEN || typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return false;
+  if (!MIXPANEL_TOKEN) {
+    // 토큰 미설정은 로컬 개발에서는 정상 상태이지만, 프로덕션에서 발생하면
+    // 배포 환경(Vercel)에 NEXT_PUBLIC_MIXPANEL_TOKEN이 빠져 있다는 신호이므로
+    // 반드시 콘솔에서 보여야 한다. 값 자체는 로그에 남기지 않는다.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[mixpanel] NEXT_PUBLIC_MIXPANEL_TOKEN is not set; analytics disabled');
+    }
+    return false;
+  }
 
   try {
     mixpanel.init(MIXPANEL_TOKEN, {
@@ -25,7 +34,9 @@ function init(): boolean {
       debug: process.env.NODE_ENV === 'development',
     });
     initialized = true;
-  } catch {
+  } catch (error) {
+    // 에러 객체는 그대로 남기되(스택 확인용), 토큰 등 민감정보를 별도로 포함하지 않는다.
+    console.error('[mixpanel] init failed', error);
     initialized = false;
   }
   return initialized;
@@ -35,8 +46,9 @@ export function track(event: string, properties?: Record<string, unknown>): void
   try {
     if (!init()) return;
     mixpanel.track(event, properties);
-  } catch {
-    // 분석 전송 실패는 무시한다 — 핵심 기능을 막지 않는다.
+  } catch (error) {
+    // 분석 전송 실패는 무시한다 — 핵심 기능을 막지 않는다. 원인 파악을 위해 로그만 남긴다.
+    console.error('[mixpanel] track failed', error);
   }
 }
 
@@ -48,8 +60,8 @@ export function identify(userId: string): void {
   try {
     if (!init()) return;
     mixpanel.identify(userId);
-  } catch {
-    // 무시
+  } catch (error) {
+    console.error('[mixpanel] identify failed', error);
   }
 }
 
@@ -58,7 +70,7 @@ export function resetAnalytics(): void {
     if (init()) {
       mixpanel.reset();
     }
-  } catch {
-    // 무시
+  } catch (error) {
+    console.error('[mixpanel] reset failed', error);
   }
 }
