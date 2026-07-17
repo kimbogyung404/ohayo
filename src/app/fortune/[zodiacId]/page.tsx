@@ -26,6 +26,17 @@ import {
   revertPendingVocabSaveToPending,
   clearPendingVocabSave,
 } from '@/lib/pendingVocabSave';
+import {
+  trackLearningStarted,
+  trackVocabOpened,
+  trackAllVocabViewed,
+  trackReviewStarted,
+  trackSaveButtonClicked,
+  trackVocabSaved,
+  trackLearningFeedbackSelected,
+  trackLearningFeedbackReasonToggled,
+  trackCompletionActionClicked,
+} from '@/lib/analytics/events';
 import type { Fortune, ZodiacId } from '@/types/fortune';
 
 type LoadStatus = 'loading' | 'ready' | 'not-found' | 'error';
@@ -81,6 +92,9 @@ export default function FortuneDetailPage() {
   // 유지되므로 안전하다(useSavedVocabulary의 isMountedRef와 동일한 이유).
   const restoredPendingRef = useRef(false);
   const resumeSaveAttemptedRef = useRef(false);
+  // 분석 이벤트 중복 전송 방지용 가드(각 이벤트를 이 마운트에서 최초 1회만 보낸다).
+  const learningStartedTrackedRef = useRef(false);
+  const allVocabViewedTrackedRef = useRef(false);
 
   // Supabase에서 실제 운세 데이터를 조회한다(공개 RLS, 브라우저 클라이언트로 충분).
   // zodiacId 자체가 잘못된 경우는 이 effect보다 먼저(렌더 시점에) notFound()로 처리되므로
@@ -128,6 +142,23 @@ export default function FortuneDetailPage() {
 
   const activeWord = fortune?.vocabulary.find((v) => v.id === activeWordId) ?? null;
 
+  // learning_started — 운세/단어 데이터가 준비되어 학습을 시작할 수 있게 된 시점에
+  // 이 마운트당 정확히 한 번만 보낸다.
+  useEffect(() => {
+    if (status !== 'ready') return;
+    if (learningStartedTrackedRef.current) return;
+    learningStartedTrackedRef.current = true;
+    trackLearningStarted({ zodiacId });
+  }, [status, zodiacId]);
+
+  // all_vocab_viewed — 일본어 단어 3개를 모두 확인한 순간 한 번만 보낸다.
+  useEffect(() => {
+    if (!isAllChecked) return;
+    if (allVocabViewedTrackedRef.current) return;
+    allVocabViewedTrackedRef.current = true;
+    trackAllVocabViewed({ zodiacId });
+  }, [isAllChecked, zodiacId]);
+
   // review 화면 상태(step/selectedWordIds) 복원 — 로그인 여부와 무관하게, 이 zodiac에
   // 대한 pending 저장 의도가 남아있으면 항상 복원한다. OAuth를 취소하거나 실패해서
   // 로그인하지 못한 채 이 화면으로 돌아오더라도, 사용자가 골랐던 단어를 다시 고를
@@ -169,6 +200,7 @@ export default function FortuneDetailPage() {
 
     saveWords(pending.selectedVocabIds).then((result) => {
       if (result.status === 'saved') {
+        trackVocabSaved({ zodiacId, savedCount: result.savedCount });
         clearPendingVocabSave();
         setStep('complete');
         return;
@@ -202,6 +234,7 @@ export default function FortuneDetailPage() {
   }, [activeWordId, openToken]);
 
   const openWordOverlay = (vocabularyId: string) => {
+    trackVocabOpened({ zodiacId, vocabularyId });
     setActiveWordId(vocabularyId);
     setOpenToken((t) => t + 1);
     // Set이라 이미 들어있는 id를 다시 추가해도 크기가 늘지 않는다 —
@@ -217,6 +250,7 @@ export default function FortuneDetailPage() {
   const closeWordOverlay = () => setActiveWordId(null);
 
   const goToReview = () => {
+    trackReviewStarted({ zodiacId });
     // 매번 새 복습 세션으로 취급한다 — study로 돌아갔다가 다시 들어와도
     // 이전 선택을 이어받지 않고 항상 미선택 상태로 시작한다.
     setSelectedWordIds(new Set());
@@ -233,6 +267,7 @@ export default function FortuneDetailPage() {
   };
 
   const selectLearningFeedback = (value: LearningFeedback) => {
+    trackLearningFeedbackSelected({ zodiacId, value });
     setLearningFeedback(value);
     // '아쉬웠어요'가 아닌 다른 항목으로 바꾸면 이유 영역을 숨기고 선택도 초기화한다.
     if (value !== 'unhelpful') {
@@ -241,6 +276,11 @@ export default function FortuneDetailPage() {
   };
 
   const toggleUnhelpfulReason = (reasonId: string) => {
+    trackLearningFeedbackReasonToggled({
+      zodiacId,
+      reasonId,
+      checked: !unhelpfulReasonIds.has(reasonId),
+    });
     setUnhelpfulReasonIds((prev) => {
       const next = new Set(prev);
       if (next.has(reasonId)) next.delete(reasonId);
@@ -250,7 +290,14 @@ export default function FortuneDetailPage() {
   };
 
   const handleLoginStart = () => {
-    signInWithGoogle(window.location.pathname);
+    // 저장 플로우 컨텍스트를 넘겨야만 login_started/pending 로그인 기록(분석 전용,
+    // ohayo_pending_vocab_save와 무관한 별도 키)이 남는다 — 이 화면의 저장 CTA를
+    // 통한 로그인만 login_started 퍼널에 집계된다.
+    signInWithGoogle(window.location.pathname, {
+      source: 'vocab_save',
+      zodiacId,
+      selectedVocabCount: selectedWordIds.size,
+    });
   };
 
   const handleLoginSheetClose = () => {
@@ -260,6 +307,8 @@ export default function FortuneDetailPage() {
 
   const handleSaveSelected = async () => {
     if (selectedWordIds.size === 0 || isSaving) return;
+
+    trackSaveButtonClicked({ zodiacId, selectedCount: selectedWordIds.size });
 
     if (!isLoggedIn) {
       savePendingVocabSave({ zodiacId, selectedVocabIds: [...selectedWordIds] });
@@ -272,6 +321,7 @@ export default function FortuneDetailPage() {
     setIsSaving(false);
 
     if (result.status === 'saved') {
+      trackVocabSaved({ zodiacId, savedCount: result.savedCount });
       setStep('complete');
       return;
     }
@@ -399,10 +449,26 @@ export default function FortuneDetailPage() {
 
         <StickyActionBar>
           <div className="flex w-full gap-3">
-            <Button hierarchy="secondary" size="medium" fullWidth onClick={() => setStep('study')}>
+            <Button
+              hierarchy="secondary"
+              size="medium"
+              fullWidth
+              onClick={() => {
+                trackCompletionActionClicked({ zodiacId, action: 'return_to_fortune' });
+                setStep('study');
+              }}
+            >
               운세로 돌아가기
             </Button>
-            <Button hierarchy="primary" size="medium" fullWidth onClick={() => router.push('/saved')}>
+            <Button
+              hierarchy="primary"
+              size="medium"
+              fullWidth
+              onClick={() => {
+                trackCompletionActionClicked({ zodiacId, action: 'view_saved' });
+                router.push('/saved');
+              }}
+            >
               저장된 단어 보기
             </Button>
           </div>

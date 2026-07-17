@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import AuthTopNav from '@/components/common/AuthTopNav';
@@ -12,6 +12,7 @@ import ErrorState from '@/components/common/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import BottomNavigation from '@/components/ui/BottomNavigation';
 import { speak } from '@/lib/speak';
+import { trackSavedTabViewed, trackSavedVocabFlipped } from '@/lib/analytics/events';
 import type { SavedWord } from '@/types/vocabulary';
 
 export default function SavedPage() {
@@ -27,7 +28,22 @@ export default function SavedPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const toggleReveal = (id: string) => {
+  // saved_tab_viewed 중복 전송 방지 — 목록이 실제로 표시된 시점에 이 마운트당 1회만.
+  const savedTabViewedTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || !isLoaded || loadError) return;
+    if (savedTabViewedTrackedRef.current) return;
+    savedTabViewedTrackedRef.current = true;
+    trackSavedTabViewed({ count: savedWords.length });
+  }, [isLoggedIn, isLoaded, loadError, savedWords.length]);
+
+  const toggleReveal = (id: string, vocabularyId: string) => {
+    // 앞면 → 뒷면(공개)으로 바뀌는 순간만 전송한다. 뒷면 → 앞면으로 되돌아갈 때는
+    // 전송하지 않는다.
+    const willReveal = !revealedIds.has(id);
+    if (willReveal) {
+      trackSavedVocabFlipped({ vocabularyId });
+    }
     setRevealedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -220,7 +236,7 @@ export default function SavedPage() {
               word={item.vocabulary.surfaceForm}
               reading={item.vocabulary.reading}
               meaning={item.vocabulary.meaning}
-              onFlip={() => toggleReveal(item.id)}
+              onFlip={() => toggleReveal(item.id, item.vocabularyId)}
               onPlayAudio={() => handlePlayAudio(item)}
             />
           );

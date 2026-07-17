@@ -1,0 +1,64 @@
+import { track } from './mixpanel';
+
+// Mixpanel 이벤트 명세와 1:1로 대응하는 타입 있는 래퍼. 개인정보(이메일/이름/Google
+// 계정 정보/access·refresh token/운세 원문 전체/Supabase 키/Mixpanel 토큰)는 어떤
+// 속성에도 포함하지 않는다 — zodiacId, vocabularyId, 개수, 선택지 값 등 구조적
+// 데이터만 보낸다.
+//
+// login_started / login_completed는 src/hooks/useAuth.ts에서만 다룬다. login_started는
+// signInWithGoogle() 호출 시점, login_completed는 이 저장 플로우에서 실제로 로그인을
+// 새로 시작해 성공한 경우에만(pending 로그인 시도 존재 여부로 판별) 전송한다 —
+// identify()(mixpanel.ts)는 세션 연결만 하고 이벤트를 보내지 않는다.
+
+export function trackLearningStarted(props: { zodiacId: string }): void {
+  track('learning_started', props);
+}
+
+export function trackVocabOpened(props: { zodiacId: string; vocabularyId: string }): void {
+  track('vocab_opened', props);
+}
+
+export function trackAllVocabViewed(props: { zodiacId: string }): void {
+  track('all_vocab_viewed', props);
+}
+
+export function trackReviewStarted(props: { zodiacId: string }): void {
+  track('review_started', props);
+}
+
+export function trackSaveButtonClicked(props: { zodiacId: string; selectedCount: number }): void {
+  track('save_button_clicked', props);
+}
+
+export function trackVocabSaved(props: { zodiacId: string; savedCount: number }): void {
+  track('vocab_saved', props);
+}
+
+export function trackSavedTabViewed(props: { count: number }): void {
+  track('saved_tab_viewed', props);
+}
+
+// 앞면 → 뒷면(공개)으로 바뀌는 순간에만 호출한다. 뒷면 → 앞면으로 되돌아갈 때는
+// 호출하지 않는다(호출부에서 그 방향일 때만 이 함수를 부르도록 보장한다).
+export function trackSavedVocabFlipped(props: { vocabularyId: string }): void {
+  track('saved_vocab_flipped', props);
+}
+
+export function trackLearningFeedbackSelected(props: { zodiacId: string; value: string }): void {
+  track('learning_feedback_selected', props);
+}
+
+export function trackLearningFeedbackReasonToggled(props: {
+  zodiacId: string;
+  reasonId: string;
+  checked: boolean;
+}): void {
+  track('learning_feedback_reason_toggled', props);
+}
+
+export function trackCompletionActionClicked(props: {
+  zodiacId: string;
+  action: 'return_to_fortune' | 'view_saved';
+}): void {
+  track('completion_action_clicked', props);
+}
