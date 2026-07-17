@@ -36,6 +36,7 @@ import {
   trackLearningFeedbackSelected,
   trackLearningFeedbackReasonToggled,
   trackCompletionActionClicked,
+  trackFortuneDetailExited,
 } from '@/lib/analytics/events';
 import type { Fortune, ZodiacId } from '@/types/fortune';
 
@@ -99,6 +100,11 @@ export default function FortuneDetailPage() {
   // learning_started/review_started가 실제로 전송된 시점에 각각 기록한다.
   const learningStartedAtRef = useRef<number | null>(null);
   const reviewStartedAtRef = useRef<number | null>(null);
+  // fortune_detail_exited 전송 시점의 checkedCount 스냅샷용. cleanup 클로저는 effect가
+  // 마운트된 시점의 값을 그대로 참조하므로, 렌더마다 최신값을 여기로 동기화해 둔다.
+  const checkedCountRef = useRef(0);
+  // 언마운트 여부 판정을 한 틱 미루기 위한 타이머(아래 fortune_detail_exited effect 참고).
+  const exitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Supabase에서 실제 운세 데이터를 조회한다(공개 RLS, 브라우저 클라이언트로 충분).
   // zodiacId 자체가 잘못된 경우는 이 effect보다 먼저(렌더 시점에) notFound()로 처리되므로
@@ -163,6 +169,37 @@ export default function FortuneDetailPage() {
     allVocabViewedTrackedRef.current = true;
     trackAllVocabViewed({ zodiacId });
   }, [isAllChecked, zodiacId]);
+
+  // checkedCountRef 동기화 — cleanup 클로저가 항상 최신 checkedCount를 읽을 수 있도록
+  // 렌더 중이 아니라 effect 안에서 갱신한다.
+  useEffect(() => {
+    checkedCountRef.current = checkedCount;
+  }, [checkedCount]);
+
+  // fortune_detail_exited — learning_started는 발생했지만 review_started 없이 이 화면을
+  // 벗어나는 경우에만 보낸다(beforeunload는 신뢰도가 낮아 쓰지 않는다). cleanup에서
+  // 바로 보내지 않고 한 틱(setTimeout 0) 미룬 뒤, 같은 틱 안에서 effect가 다시 실행되면
+  // 취소한다 — React Strict Mode의 개발 전용 mount→cleanup→mount 이중 호출을 실제
+  // 이탈로 오인해 오탐하지 않기 위함이다.
+  useEffect(() => {
+    if (exitTimeoutRef.current !== null) {
+      clearTimeout(exitTimeoutRef.current);
+      exitTimeoutRef.current = null;
+    }
+
+    return () => {
+      exitTimeoutRef.current = setTimeout(() => {
+        exitTimeoutRef.current = null;
+        if (learningStartedAtRef.current === null) return;
+        if (reviewStartedAtRef.current !== null) return;
+        trackFortuneDetailExited({
+          zodiacId,
+          checkedCount: checkedCountRef.current,
+          timeSpentMs: Date.now() - learningStartedAtRef.current,
+        });
+      }, 0);
+    };
+  }, [zodiacId]);
 
   // review 화면 상태(step/selectedWordIds) 복원 — 로그인 여부와 무관하게, 이 zodiac에
   // 대한 pending 저장 의도가 남아있으면 항상 복원한다. OAuth를 취소하거나 실패해서

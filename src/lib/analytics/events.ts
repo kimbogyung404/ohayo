@@ -92,3 +92,14 @@ export function trackCompletionActionClicked(props: {
 }): void {
   track('completion_action_clicked', props);
 }
+
+// learning_started는 발생했지만 review_started 없이 fortune 상세 화면을 벗어난 경우에만
+// 보낸다. checkedCount: 벗어난 시점까지 클릭해 확인한 단어 개수(0~3). timeSpentMs:
+// learning_started 시점부터 벗어난 시점까지 걸린 시간(ms).
+export function trackFortuneDetailExited(props: {
+  zodiacId: string;
+  checkedCount: number;
+  timeSpentMs: number;
+}): void {
+  track('fortune_detail_exited', props);
+}
