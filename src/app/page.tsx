@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getLatestReadyDate, getRankingForDate } from '@/lib/fortune/queries';
 import EmptyState from '@/components/common/EmptyState';
@@ -8,6 +7,7 @@ import FortuneListItem from '@/components/ui/FortuneListItem';
 import Avatar from '@/components/ui/Avatar';
 import ZodiacAsset from '@/components/ui/ZodiacAsset';
 import AuthTopNav from '@/components/common/AuthTopNav';
+import ZodiacTrackedLink from '@/components/common/ZodiacTrackedLink';
 import { ZODIAC_MONTH_LABELS } from '@/lib/zodiac';
 import type { ZodiacRankItem } from '@/types/fortune';
 
@@ -54,13 +54,14 @@ function TopRankCard({
       <div className="mb-2 flex justify-center">
         <Image src={imageSrc} alt={`${item.rank}위`} width={40} height={40} />
       </div>
-      <Link
+      <ZodiacTrackedLink
+        zodiacId={item.zodiacId}
         href={`/fortune/${item.zodiacId}`}
         className={[
           'flex flex-col items-center overflow-hidden rounded-[var(--radius-xl)] pb-4',
           isFirst ? 'bg-[var(--brand-primary)]' : 'bg-[var(--brand-light)]',
         ].join(' ')}
-        aria-label={`${item.rank}위 ${item.zodiacKorean} 운세 보기`}
+        ariaLabel={`${item.rank}위 ${item.zodiacKorean} 운세 보기`}
       >
         <div className="relative aspect-square w-full">
           <ZodiacAsset zodiac={item.zodiacId} alt="" />
@@ -73,7 +74,7 @@ function TopRankCard({
             {monthLabel}
           </span>
         </div>
-      </Link>
+      </ZodiacTrackedLink>
     </div>
   );
 }
@@ -128,6 +129,7 @@ export default async function HomePage() {
                       title={item.zodiacKorean}
                       period={ZODIAC_MONTH_LABELS[item.zodiacId]}
                       href={`/fortune/${item.zodiacId}`}
+                      zodiacId={item.zodiacId}
                     />
                   </div>
                 </li>

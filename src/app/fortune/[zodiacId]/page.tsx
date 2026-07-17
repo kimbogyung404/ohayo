@@ -95,6 +95,10 @@ export default function FortuneDetailPage() {
   // 분석 이벤트 중복 전송 방지용 가드(각 이벤트를 이 마운트에서 최초 1회만 보낸다).
   const learningStartedTrackedRef = useRef(false);
   const allVocabViewedTrackedRef = useRef(false);
+  // review_started/save_button_clicked의 timeSpentMs 계산 기준 시각(ms epoch).
+  // learning_started/review_started가 실제로 전송된 시점에 각각 기록한다.
+  const learningStartedAtRef = useRef<number | null>(null);
+  const reviewStartedAtRef = useRef<number | null>(null);
 
   // Supabase에서 실제 운세 데이터를 조회한다(공개 RLS, 브라우저 클라이언트로 충분).
   // zodiacId 자체가 잘못된 경우는 이 effect보다 먼저(렌더 시점에) notFound()로 처리되므로
@@ -148,6 +152,7 @@ export default function FortuneDetailPage() {
     if (status !== 'ready') return;
     if (learningStartedTrackedRef.current) return;
     learningStartedTrackedRef.current = true;
+    learningStartedAtRef.current = Date.now();
     trackLearningStarted({ zodiacId });
   }, [status, zodiacId]);
 
@@ -250,7 +255,12 @@ export default function FortuneDetailPage() {
   const closeWordOverlay = () => setActiveWordId(null);
 
   const goToReview = () => {
-    trackReviewStarted({ zodiacId });
+    const now = Date.now();
+    trackReviewStarted({
+      zodiacId,
+      timeSpentMs: learningStartedAtRef.current !== null ? now - learningStartedAtRef.current : undefined,
+    });
+    reviewStartedAtRef.current = now;
     // 매번 새 복습 세션으로 취급한다 — study로 돌아갔다가 다시 들어와도
     // 이전 선택을 이어받지 않고 항상 미선택 상태로 시작한다.
     setSelectedWordIds(new Set());
@@ -308,7 +318,12 @@ export default function FortuneDetailPage() {
   const handleSaveSelected = async () => {
     if (selectedWordIds.size === 0 || isSaving) return;
 
-    trackSaveButtonClicked({ zodiacId, selectedCount: selectedWordIds.size });
+    trackSaveButtonClicked({
+      zodiacId,
+      selectedCount: selectedWordIds.size,
+      timeSpentMs:
+        reviewStartedAtRef.current !== null ? Date.now() - reviewStartedAtRef.current : undefined,
+    });
 
     if (!isLoggedIn) {
       savePendingVocabSave({ zodiacId, selectedVocabIds: [...selectedWordIds] });

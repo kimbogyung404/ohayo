@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { ToastProvider } from '@/components/ui/Toast';
 import SplashScreen from '@/components/common/SplashScreen';
+import PageViewTracker from '@/components/common/PageViewTracker';
 import { SPLASH_INIT_SCRIPT } from '@/lib/splash';
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full">
+        <PageViewTracker />
         <SplashScreen />
         <ToastProvider>
           <div id="app-container">

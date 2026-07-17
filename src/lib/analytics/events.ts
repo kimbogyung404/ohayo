@@ -10,6 +10,19 @@ import { track } from './mixpanel';
 // 새로 시작해 성공한 경우에만(pending 로그인 시도 존재 여부로 판별) 전송한다 —
 // identify()(mixpanel.ts)는 세션 연결만 하고 이벤트를 보내지 않는다.
 
+// 사이트에 처음 진입하는 시점(RootLayout 마운트, PageViewTracker에서만 호출)에
+// 무조건 한 번 보낸다 — zodiac_selected/learning_started 등 다른 모든 이벤트보다
+// 먼저 발생해야 한다.
+export function trackPageViewed(): void {
+  track('page_viewed', {});
+}
+
+// 홈 화면에서 별자리를 클릭해 선택하는 시점(learning_started보다 앞선 시점 —
+// learning_started는 이동 후 fortune 데이터 fetch가 성공했을 때 발생한다).
+export function trackZodiacSelected(props: { zodiacId: string }): void {
+  track('zodiac_selected', props);
+}
+
 export function trackLearningStarted(props: { zodiacId: string }): void {
   track('learning_started', props);
 }
@@ -22,12 +35,29 @@ export function trackAllVocabViewed(props: { zodiacId: string }): void {
   track('all_vocab_viewed', props);
 }
 
-export function trackReviewStarted(props: { zodiacId: string }): void {
-  track('review_started', props);
+// timeSpentMs: learning_started 시점부터 review_started까지 걸린 시간(ms). 계산할
+// 수 없는 경우(예: 기준 시점을 기록하지 못한 예외 상황)에는 생략하고 보내지 않는다.
+export function trackReviewStarted(props: { zodiacId: string; timeSpentMs?: number }): void {
+  const { zodiacId, timeSpentMs } = props;
+  track('review_started', {
+    zodiacId,
+    ...(timeSpentMs !== undefined ? { timeSpentMs } : {}),
+  });
 }
 
-export function trackSaveButtonClicked(props: { zodiacId: string; selectedCount: number }): void {
-  track('save_button_clicked', props);
+// timeSpentMs: review_started 시점부터 저장 버튼 클릭까지 걸린 시간(ms). 계산할 수
+// 없는 경우에는 생략하고 보내지 않는다.
+export function trackSaveButtonClicked(props: {
+  zodiacId: string;
+  selectedCount: number;
+  timeSpentMs?: number;
+}): void {
+  const { zodiacId, selectedCount, timeSpentMs } = props;
+  track('save_button_clicked', {
+    zodiacId,
+    selectedCount,
+    ...(timeSpentMs !== undefined ? { timeSpentMs } : {}),
+  });
 }
 
 export function trackVocabSaved(props: { zodiacId: string; savedCount: number }): void {
