@@ -20,6 +20,9 @@ function init(): boolean {
       // (record_mask_all_text/record_mask_all_inputs 등 전역 마스킹 해제 옵션은
       // 건드리지 않는다 — 이메일/이름/Google 계정 정보/토큰/사용자 입력값 노출 방지).
       record_sessions_percent: 100,
+      // 개발 환경에서만 콘솔/Network 탭에 전송 로그를 남긴다. 프로덕션 빌드에서는
+      // NODE_ENV가 'production'이므로 항상 false로 컴파일된다.
+      debug: process.env.NODE_ENV === 'development',
     });
     initialized = true;
   } catch {
