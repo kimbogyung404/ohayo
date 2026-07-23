@@ -1,26 +1,47 @@
 'use client';
 
 import Icon from './Icon';
+import type { PartOfSpeech } from '@/types/fortune';
+
+// DB의 partOfSpeech 값 → 카드에 표시할 한국어 라벨. 이 맵에 없는 값(레거시 null 포함)은
+// 호출부에서 partOfSpeech를 아예 넘기지 않아 품사 영역 자체가 생략된다.
+const PART_OF_SPEECH_LABELS: Record<PartOfSpeech, string> = {
+  noun: '명사',
+  verb: '동사',
+  adjective: '형용사',
+  expression: '표현',
+};
 
 type VocabCardProps =
   | {
       // 상세 학습 화면의 단어 오버레이 전용: 뒤집기 없이 항상 공용 정보 면만 보여준다.
+      // knowledge/onRespond를 함께 넘기면 "잘 알아요"/"몰라요" 응답 버튼이 하단에
+      // 추가된다(study 단계 확인 흐름 전용). 넘기지 않으면 버튼 없이 정보 면만 표시한다.
       mode: 'front';
       word: string;
       reading?: string;
       meaning?: string;
+      partOfSpeech?: PartOfSpeech | null;
       onPlayAudio: () => void;
       className?: string;
+      knowledge?: 'known' | 'unknown' | null;
+      onRespond?: (knowledge: 'known' | 'unknown') => void;
     }
   | {
-      // 앞면(퀴즈 상태: 단어만)·뒷면(공용 정보 면)을 같은 영역에 겹쳐 렌더링하고
-      // Y축으로 회전시켜 전환한다(flip-card-* 유틸리티, globals.css 참고).
+      // 앞면(퀴즈 상태: 단어만)·뒷면(공용 정보 면 + 오늘 운세 속 문장)을 같은 영역에
+      // 겹쳐 렌더링하고 Y축으로 회전시켜 전환한다(flip-card-* 유틸리티, globals.css 참고).
       // 앞면은 의도적으로 공용 정보 면을 쓰지 않는다 — 뜻을 먼저 떠올려보게 하기 위함.
+      // partOfSpeech/sourceSentence*는 뒷면에만 반영되며 앞면 퀴즈 UI는 절대 바뀌지 않는다.
       mode: 'flip';
       revealed: boolean;
       word: string;
       reading?: string;
       meaning: string;
+      partOfSpeech?: PartOfSpeech | null;
+      // 셋 중 하나라도 없으면(레거시 데이터) "오늘 운세 속 문장" 섹션 전체를 숨긴다.
+      sourceSentence?: string | null;
+      sourceSentenceReading?: string | null;
+      sourceSentenceTranslation?: string | null;
       onFlip: () => void;
       onPlayAudio: () => void;
       className?: string;
@@ -31,6 +52,7 @@ type VocabCardProps =
       word: string;
       reading?: string;
       meaning: string;
+      partOfSpeech?: PartOfSpeech | null;
       onSelect: () => void;
       onPlayAudio: () => void;
       className?: string;
@@ -68,13 +90,17 @@ function PlayAudioButton({
 }
 
 // 모든 단어 카드(mode="front" / "select" / flip 뒷면)가 공유하는 단 하나의 정보 면.
-// 순서: 일본어 단어 → 읽는 법 → 한국어 뜻 → 발음 듣기(우측 하단).
-// reading/meaning이 없으면 해당 줄만 생략하고 나머지 정렬은 그대로 유지한다.
-// 화면별로 이 레이아웃을 다시 만들지 말고 항상 이 컴포넌트를 재사용한다.
+// 순서: 읽는 법 → 일본어 단어 → 품사·한국어 뜻(한 줄) → 발음 듣기(우측 하단).
+// 읽는 법은 단어 바로 위, 좁은 간격(gap-1)으로 묶어 시각적으로 한 덩어리처럼 보이게 한다
+// (전체 세로 리듬은 기존과 동일한 gap-3 유지). reading이 없으면 그 줄만 생략되고
+// 빈 공간이 남지 않는다(묶음 안에 단어만 남음). partOfSpeech가 없으면(레거시 null
+// 포함) 품사 라벨과 "·" 구분점 없이 뜻만 표시한다. 화면별로 이 레이아웃을 다시 만들지
+// 말고 항상 이 컴포넌트를 재사용한다.
 function VocabCardContent({
   word,
   reading,
   meaning,
+  partOfSpeech,
   onPlayAudio,
   stopAudioPropagation,
   audioTabIndex,
@@ -82,22 +108,135 @@ function VocabCardContent({
   word: string;
   reading?: string;
   meaning?: string;
+  partOfSpeech?: PartOfSpeech | null;
   onPlayAudio: () => void;
   stopAudioPropagation?: boolean;
   audioTabIndex?: number;
 }) {
+  const partOfSpeechLabel = partOfSpeech ? PART_OF_SPEECH_LABELS[partOfSpeech] : null;
+  const meaningLine = meaning ? (partOfSpeechLabel ? `${partOfSpeechLabel} · ${meaning}` : meaning) : null;
+
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
-        {word}
-      </p>
-      {reading && (
-        <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
-          {reading}
+      <div className="flex w-full flex-col items-center gap-1">
+        {reading && (
+          <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
+            {reading}
+          </p>
+        )}
+        <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
+          {word}
         </p>
-      )}
-      {meaning && <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaning}</p>}
+      </div>
+      {meaningLine && <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">{meaningLine}</p>}
       <PlayAudioButton onPlayAudio={onPlayAudio} stopPropagation={stopAudioPropagation} tabIndex={audioTabIndex} />
+    </div>
+  );
+}
+
+// 단어 확인 응답 버튼("잘 알아요"/"몰라요"). 두 선택지는 동일한 위계로 표현한다 —
+// 하나를 primary로 강조하지 않는다(complete 단계의 학습 피드백 버튼과 같은
+// active/inactive 토큰 조합을 재사용한다).
+function KnowledgeResponseButtons({
+  knowledge,
+  onRespond,
+}: {
+  knowledge: 'known' | 'unknown' | null | undefined;
+  onRespond: (knowledge: 'known' | 'unknown') => void;
+}) {
+  const options: { value: 'known' | 'unknown'; label: string }[] = [
+    { value: 'known', label: '잘 알아요' },
+    { value: 'unknown', label: '몰라요' },
+  ];
+
+  return (
+    <div role="group" aria-label="단어 확인" className="flex w-full gap-3">
+      {options.map((option) => {
+        const active = knowledge === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onRespond(option.value)}
+            className={[
+              'flex-1 rounded-[var(--radius-md)] border-[1.5px] px-4 py-3 text-b2-medium',
+              active
+                ? 'border-[var(--border-brand)] bg-[var(--surface-brand)] text-[var(--text-brand)]'
+                : 'border-[var(--border-default)] bg-[var(--color-white)] text-[var(--text-secondary)]',
+            ].join(' ')}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// sourceSentence 안에서 surfaceForm이 정확히 한 번 등장할 때만 앞/단어/뒷부분으로
+// 나눈다. 0회 또는 2회 이상이면 위치를 임의로 정하지 않고 null을 반환해 문장을
+// 일반 텍스트로만 표시하게 한다.
+function splitOnUniqueOccurrence(
+  sentence: string,
+  target: string
+): { before: string; match: string; after: string } | null {
+  if (!target) return null;
+  const firstIndex = sentence.indexOf(target);
+  if (firstIndex === -1) return null;
+  if (sentence.indexOf(target, firstIndex + 1) !== -1) return null; // 2회 이상 등장
+
+  return {
+    before: sentence.slice(0, firstIndex),
+    match: sentence.slice(firstIndex, firstIndex + target.length),
+    after: sentence.slice(firstIndex + target.length),
+  };
+}
+
+// 저장 단어 플립 카드 뒷면 전용 "오늘 운세 속 문장" 섹션. 새 문장을 만들지 않고
+// DB에 저장된 sourceSentence/Reading/Translation을 그대로 보여준다. 위 공용 정보
+// 면(VocabCardContent)과 시각적으로 구분되도록 얇은 구분선(기존 border 토큰)만
+// 추가하고, 별도의 회색 박스나 그림자는 넣지 않는다. 라벨은 caption(보조 위계),
+// 문장은 원문 → 읽는 법(작게, 보조 색상) → 번역 순으로 카드 안 다른 텍스트와 같은
+// 가운데 정렬을 유지한다. 클릭 가능한 하이라이트가 아니라 순수 <span> 강조이며,
+// 이 영역을 눌러도 상위 role="button"(카드 뒤집기)으로 그대로 버블링된다.
+function SourceSentenceSection({
+  surfaceForm,
+  sourceSentence,
+  sourceSentenceReading,
+  sourceSentenceTranslation,
+}: {
+  surfaceForm: string;
+  sourceSentence: string;
+  sourceSentenceReading: string;
+  sourceSentenceTranslation: string;
+}) {
+  const split = splitOnUniqueOccurrence(sourceSentence, surfaceForm);
+
+  return (
+    <div className="mt-4 w-full border-t border-[var(--border-default)] pt-4">
+      <p className="text-caption font-semibold tracking-wide text-[var(--text-tertiary)]">
+        오늘 운세 속 문장
+      </p>
+      <p className="text-b2-medium mt-2 w-full text-center text-[var(--text-primary)]" lang="ja">
+        {split ? (
+          <>
+            {split.before}
+            <span className="rounded-[var(--radius-sm)] bg-[var(--surface-brand)] px-1 text-[var(--brand-primary)]">
+              {split.match}
+            </span>
+            {split.after}
+          </>
+        ) : (
+          sourceSentence
+        )}
+      </p>
+      <p className="text-caption mt-1 w-full text-center text-[var(--text-tertiary)]" lang="ja">
+        {sourceSentenceReading}
+      </p>
+      <p className="text-b2-medium mt-3 w-full text-center text-[var(--text-secondary)]">
+        {sourceSentenceTranslation}
+      </p>
     </div>
   );
 }
@@ -106,7 +245,7 @@ export default function VocabCard(props: VocabCardProps) {
   const rootClassName = props.className ?? '';
 
   if (props.mode === 'front') {
-    const { word, reading, meaning, onPlayAudio } = props;
+    const { word, reading, meaning, partOfSpeech, onPlayAudio, knowledge, onRespond } = props;
     return (
       <div
         className={[
@@ -116,13 +255,37 @@ export default function VocabCard(props: VocabCardProps) {
           .filter(Boolean)
           .join(' ')}
       >
-        <VocabCardContent word={word} reading={reading} meaning={meaning} onPlayAudio={onPlayAudio} />
+        <div className="flex w-full flex-col gap-5">
+          <VocabCardContent
+            word={word}
+            reading={reading}
+            meaning={meaning}
+            partOfSpeech={partOfSpeech}
+            onPlayAudio={onPlayAudio}
+          />
+          {onRespond && <KnowledgeResponseButtons knowledge={knowledge} onRespond={onRespond} />}
+        </div>
       </div>
     );
   }
 
   if (props.mode === 'flip') {
-    const { revealed, word, reading, meaning, onFlip, onPlayAudio } = props;
+    const {
+      revealed,
+      word,
+      reading,
+      meaning,
+      partOfSpeech,
+      sourceSentence,
+      sourceSentenceReading,
+      sourceSentenceTranslation,
+      onFlip,
+      onPlayAudio,
+    } = props;
+    // 셋 다 있어야만 섹션을 보여준다 — 일부만 있는 레거시/불완전 데이터는 표시하지 않는다.
+    const hasSourceSentenceSection = Boolean(
+      sourceSentence && sourceSentenceReading && sourceSentenceTranslation
+    );
     return (
       <div className={['flip-card-outer', rootClassName].filter(Boolean).join(' ')}>
         <div className="flip-card-inner" data-revealed={revealed}>
@@ -175,10 +338,19 @@ export default function VocabCard(props: VocabCardProps) {
               word={word}
               reading={reading}
               meaning={meaning}
+              partOfSpeech={partOfSpeech}
               onPlayAudio={onPlayAudio}
               stopAudioPropagation
               audioTabIndex={revealed ? 0 : -1}
             />
+            {hasSourceSentenceSection && (
+              <SourceSentenceSection
+                surfaceForm={word}
+                sourceSentence={sourceSentence as string}
+                sourceSentenceReading={sourceSentenceReading as string}
+                sourceSentenceTranslation={sourceSentenceTranslation as string}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -186,7 +358,7 @@ export default function VocabCard(props: VocabCardProps) {
   }
 
   // mode === 'select'
-  const { selected, word, reading, meaning, onSelect, onPlayAudio } = props;
+  const { selected, word, reading, meaning, partOfSpeech, onSelect, onPlayAudio } = props;
   return (
     <div
       className={[
@@ -217,6 +389,7 @@ export default function VocabCard(props: VocabCardProps) {
           word={word}
           reading={reading}
           meaning={meaning}
+          partOfSpeech={partOfSpeech}
           onPlayAudio={onPlayAudio}
           stopAudioPropagation
         />

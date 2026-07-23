@@ -31,6 +31,14 @@ export type KoreanSegment =
 // 전에 생성된 기존 데이터는 null(레거시, 난이도 불명).
 export type VocabularyDifficulty = 'easy' | 'challenge';
 
+// 단어 품사. noun/verb/adjective 세 품사로 명확히 분류하기 애매한 관용구·부사 등은
+// expression으로 분류한다.
+export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'expression';
+
+// 단어가 실제로 등장한 문장의 출처. 공식 원문(main) 또는 AI 세부 운세 3종 중 하나이며,
+// 행운 아이템(lucky_item)은 문장이 아니라 짧은 명사/장소라 후보에서 제외한다.
+export type VocabularySourceKey = 'main' | FortuneDetailCategory;
+
 // 핵심 단어
 export interface Vocabulary {
   id: string;
@@ -38,9 +46,14 @@ export interface Vocabulary {
   surfaceForm: string; // 문장에 실제 등장한 형태
   reading: string;     // 히라가나 읽는 법
   meaning: string;     // 한국어 뜻 (해당 문맥 기준)
-  // 이 필드가 생기기 전의 호출부(mock 데이터, 저장한 단어 조회 등)에 영향을 주지
-  // 않도록 optional로 둔다. 값이 있으면 difficulty, 레거시/미조회 시 undefined.
+  // 아래 필드들이 생기기 전의 호출부(mock 데이터, 저장한 단어 조회 등)에 영향을 주지
+  // 않도록 전부 optional로 둔다. 값이 있으면 정상, 레거시/미조회 시 undefined 또는 null.
   difficulty?: VocabularyDifficulty | null;
+  partOfSpeech?: PartOfSpeech | null;
+  sourceKey?: VocabularySourceKey | null;
+  sourceSentence?: string | null;               // 이 단어가 실제로 등장한 일본어 문장
+  sourceSentenceReading?: string | null;         // 그 문장 전체의 읽는 법
+  sourceSentenceTranslation?: string | null;     // 그 문장의 한국어 번역
 }
 
 // 세부 운세 카테고리. 공식 오하아사 소스에는 없는 항목이며, M5가 original_text의

@@ -222,6 +222,7 @@ export default function SavedPage() {
                 word={item.vocabulary.surfaceForm}
                 reading={item.vocabulary.reading}
                 meaning={item.vocabulary.meaning}
+                partOfSpeech={item.vocabulary.partOfSpeech}
                 onSelect={() => toggleSelect(item.id)}
                 onPlayAudio={() => handlePlayAudio(item)}
               />
@@ -236,6 +237,10 @@ export default function SavedPage() {
               word={item.vocabulary.surfaceForm}
               reading={item.vocabulary.reading}
               meaning={item.vocabulary.meaning}
+              partOfSpeech={item.vocabulary.partOfSpeech}
+              sourceSentence={item.vocabulary.sourceSentence}
+              sourceSentenceReading={item.vocabulary.sourceSentenceReading}
+              sourceSentenceTranslation={item.vocabulary.sourceSentenceTranslation}
               onFlip={() => toggleReveal(item.id, item.vocabularyId)}
               onPlayAudio={() => handlePlayAudio(item)}
             />

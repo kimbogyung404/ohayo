@@ -72,12 +72,10 @@ export default function FortuneDetailPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const [step, setStep] = useState<LearningStep>('study');
-  const [checkedWordIds, setCheckedWordIds] = useState<Set<string>>(new Set());
+  // 단어별 확인 응답("잘 알아요"/"몰라요"). 이 값이 있는 단어만 "확인 완료"로 친다 —
+  // 카드를 열기만 하고 dim을 눌러 닫으면 응답이 기록되지 않아 재열람 시 다시 물어본다.
+  const [wordKnowledgeById, setWordKnowledgeById] = useState<Record<string, 'known' | 'unknown'>>({});
   const [activeWordId, setActiveWordId] = useState<string | null>(null);
-  // 같은 단어를 다시 눌러도 3초 자동 종료 타이머가 재시작되도록 하는 카운터.
-  // activeWordId만으로는 같은 값으로 다시 set할 때 React가 재렌더를 스킵해
-  // 아래 useEffect가 재실행되지 않는다.
-  const [openToken, setOpenToken] = useState(0);
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [showLoginSheet, setShowLoginSheet] = useState(false);
@@ -147,6 +145,9 @@ export default function FortuneDetailPage() {
     () => new Set((fortune?.vocabulary ?? []).map((word) => word.id)),
     [fortune]
   );
+  // "확인 완료"는 응답(잘 알아요/몰라요)이 기록된 단어만 센다 — 카드를 열어보기만 한
+  // 것은 확인으로 치지 않는다.
+  const checkedWordIds = useMemo(() => new Set(Object.keys(wordKnowledgeById)), [wordKnowledgeById]);
   const checkedCount = [...checkedWordIds].filter((id) => requiredWordIds.has(id)).length;
   const isAllChecked = requiredWordIds.size === 3 && checkedCount === requiredWordIds.size;
 
@@ -262,34 +263,22 @@ export default function FortuneDetailPage() {
     });
   }, [isLoggedIn, zodiacId, saveWords, showToast]);
 
-  // 단어 카드 오버레이 3초 자동 종료. activeWordId(와 openToken) 변경마다 새로
-  // 실행되며, cleanup이 이전 타이머를 정리한다 — 그래서 새 단어를 열거나, 같은
-  // 단어를 다시 열거나, 수동으로 닫거나, 언마운트될 때 모두 정확히 하나의
-  // 타이머만 살아있다. Strict Mode의 mount→cleanup→mount 이중 실행도 동일한
-  // 이유로 안전하다(첫 번째 타이머가 cleanup에서 즉시 정리된다).
-  useEffect(() => {
-    if (activeWordId === null) return;
-    const timer = setTimeout(() => {
-      setActiveWordId(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [activeWordId, openToken]);
-
   const openWordOverlay = (vocabularyId: string) => {
     trackVocabOpened({ zodiacId, vocabularyId });
     setActiveWordId(vocabularyId);
-    setOpenToken((t) => t + 1);
-    // Set이라 이미 들어있는 id를 다시 추가해도 크기가 늘지 않는다 —
-    // 같은 단어를 여러 위치에서 눌러도 확인 개수가 한 번만 증가하는 이유.
-    setCheckedWordIds((prev) => {
-      if (prev.has(vocabularyId)) return prev;
-      const next = new Set(prev);
-      next.add(vocabularyId);
-      return next;
-    });
   };
 
+  // dim 영역을 눌러 응답 없이 닫는 경우. 응답이 기록되지 않으므로 나중에 다시 열어
+  // 응답할 수 있고, review 진입 시 선택 안 된 상태로 취급된다.
   const closeWordOverlay = () => setActiveWordId(null);
+
+  // "잘 알아요"/"몰라요" 버튼 응답. 같은 단어를 다시 열어 응답을 바꿔도 키가 이미
+  // 존재하므로 checkedWordIds(Object.keys 기반) 크기는 늘지 않는다 — 진행률 중복
+  // 증가 없음. 응답과 동시에 카드를 닫는다.
+  const respondToWord = (vocabularyId: string, knowledge: 'known' | 'unknown') => {
+    setWordKnowledgeById((prev) => ({ ...prev, [vocabularyId]: knowledge }));
+    setActiveWordId(null);
+  };
 
   const goToReview = () => {
     const now = Date.now();
@@ -298,9 +287,15 @@ export default function FortuneDetailPage() {
       timeSpentMs: learningStartedAtRef.current !== null ? now - learningStartedAtRef.current : undefined,
     });
     reviewStartedAtRef.current = now;
-    // 매번 새 복습 세션으로 취급한다 — study로 돌아갔다가 다시 들어와도
-    // 이전 선택을 이어받지 않고 항상 미선택 상태로 시작한다.
-    setSelectedWordIds(new Set());
+    // "몰라요"로 응답한 단어는 저장 후보로 미리 선택해 두고, "잘 알아요"로 응답했거나
+    // (이론상 도달하지 않아야 하지만 방어적으로) 응답이 없는 단어는 선택하지 않는다.
+    // study로 돌아갔다가 다시 들어와도 매번 이 규칙으로 다시 계산한다.
+    const initialSelected = new Set(
+      (fortune?.vocabulary ?? [])
+        .filter((word) => wordKnowledgeById[word.id] === 'unknown')
+        .map((word) => word.id)
+    );
+    setSelectedWordIds(initialSelected);
     setStep('review');
   };
 
@@ -554,6 +549,7 @@ export default function FortuneDetailPage() {
                     word={vocab.surfaceForm}
                     reading={vocab.reading}
                     meaning={vocab.meaning}
+                    partOfSpeech={vocab.partOfSpeech}
                     onSelect={alreadySaved ? () => {} : () => toggleSelectWord(vocab.id)}
                     onPlayAudio={() => speak(vocab.reading || vocab.surfaceForm)}
                   />
@@ -736,7 +732,8 @@ export default function FortuneDetailPage() {
         </StickyActionBar>
       )}
 
-      {/* 단어 카드 오버레이 — 항상 앞면(단어+읽는 법+한국어 뜻+발음 듣기)만 표시, 뒤집기 없음, 3초 뒤 자동 종료 */}
+      {/* 단어 카드 오버레이 — 항상 앞면(단어+읽는 법+한국어 뜻+발음 듣기)만 표시, 뒤집기 없음.
+          "잘 알아요"/"몰라요" 중 하나를 누르거나 dim 영역을 눌러야만 닫힌다(자동 종료 없음). */}
       <VocabCardOverlay isOpen={activeWordId !== null} onClose={closeWordOverlay}>
         {activeWord && (
           <VocabCard
@@ -744,7 +741,10 @@ export default function FortuneDetailPage() {
             word={activeWord.surfaceForm}
             reading={activeWord.reading}
             meaning={activeWord.meaning}
+            partOfSpeech={activeWord.partOfSpeech}
             onPlayAudio={() => speak(activeWord.reading || activeWord.surfaceForm)}
+            knowledge={wordKnowledgeById[activeWord.id] ?? null}
+            onRespond={(knowledge) => respondToWord(activeWord.id, knowledge)}
           />
         )}
       </VocabCardOverlay>

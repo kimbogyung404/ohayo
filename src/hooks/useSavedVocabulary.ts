@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { SavedWord } from '@/types/vocabulary';
+import type { PartOfSpeech } from '@/types/fortune';
 
 type SaveOutcome =
   | { status: 'saved' }
@@ -29,6 +30,10 @@ interface SavedVocabularyRow {
     surface_form: string;
     reading: string;
     meaning: string;
+    part_of_speech: PartOfSpeech | null;
+    source_sentence: string | null;
+    source_sentence_reading: string | null;
+    source_sentence_translation: string | null;
     fortune: {
       date: string;
       zodiac_korean: string;
@@ -55,7 +60,8 @@ async function fetchSavedWords(
       .select(
         `id, vocabulary_id, saved_at,
          vocabulary:vocabulary_id (
-           id, word, surface_form, reading, meaning,
+           id, word, surface_form, reading, meaning, part_of_speech,
+           source_sentence, source_sentence_reading, source_sentence_translation,
            fortune:fortune_id ( date, zodiac_korean, original_text, korean_translation )
          )`
       )
@@ -78,6 +84,10 @@ async function fetchSavedWords(
           surfaceForm: row.vocabulary!.surface_form,
           reading: row.vocabulary!.reading,
           meaning: row.vocabulary!.meaning,
+          partOfSpeech: row.vocabulary!.part_of_speech,
+          sourceSentence: row.vocabulary!.source_sentence,
+          sourceSentenceReading: row.vocabulary!.source_sentence_reading,
+          sourceSentenceTranslation: row.vocabulary!.source_sentence_translation,
         },
         fortuneDate: row.vocabulary!.fortune!.date,
         zodiacKorean: row.vocabulary!.fortune!.zodiac_korean,

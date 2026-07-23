@@ -3,9 +3,11 @@ import type {
   Fortune,
   FortuneDetailEntry,
   KoreanSegment,
+  PartOfSpeech,
   Segment,
   Vocabulary,
   VocabularyDifficulty,
+  VocabularySourceKey,
   ZodiacId,
   ZodiacRankItem,
 } from '@/types/fortune';
@@ -41,6 +43,11 @@ interface VocabularyRow {
   reading: string;
   meaning: string;
   difficulty: VocabularyDifficulty | null;
+  part_of_speech: PartOfSpeech | null;
+  source_key: VocabularySourceKey | null;
+  source_sentence: string | null;
+  source_sentence_reading: string | null;
+  source_sentence_translation: string | null;
 }
 
 // 12개 별자리가 전부 존재하고 AI 처리(success)까지 완료된 가장 최신 날짜를 찾는다.
@@ -112,7 +119,9 @@ export async function getFortuneByZodiac(
 
   const { data: vocabRows, error: vocabError } = await supabase
     .from('vocabulary')
-    .select('id, word, surface_form, reading, meaning, difficulty')
+    .select(
+      'id, word, surface_form, reading, meaning, difficulty, part_of_speech, source_key, source_sentence, source_sentence_reading, source_sentence_translation'
+    )
     .eq('fortune_id', row.id);
 
   if (vocabError) return null;
@@ -124,6 +133,11 @@ export async function getFortuneByZodiac(
     reading: v.reading,
     meaning: v.meaning,
     difficulty: v.difficulty,
+    partOfSpeech: v.part_of_speech,
+    sourceKey: v.source_key,
+    sourceSentence: v.source_sentence,
+    sourceSentenceReading: v.source_sentence_reading,
+    sourceSentenceTranslation: v.source_sentence_translation,
   }));
 
   return {

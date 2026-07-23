@@ -1,8 +1,16 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { KoreanSegment } from '@/types/fortune';
-import { generateFortuneStudyData } from './gemini';
-import { validateAiResult, buildSegments, buildKoreanSegments, type KoreanSourceKey } from './validation';
+import { generateFortuneStudyData, generateVocabularyRepair } from './gemini';
+import {
+  validateAiResult,
+  buildSegments,
+  buildKoreanSegments,
+  GeminiCoreSchema,
+  VocabularyRepairResponseSchema,
+  type KoreanSourceKey,
+  type ValidatedAiResult,
+} from './validation';
 
 const KOREAN_SOURCE_KEYS: readonly KoreanSourceKey[] = ['main', 'luckyItem', 'love', 'money', 'work'];
 
@@ -14,6 +22,95 @@ const DELAY_BETWEEN_CALLS_MS = 400;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// fortune 1건당 Gemini 호출은 최대 2회로 제한한다: (1) 최초 전체 생성 1회,
+// (2) vocabulary만 다시 뽑는 repair 최대 1회. 검증 실패가 vocabulary 배열
+// 내용만의 문제(validateAiResult의 repairable: true)일 때만 repair를 시도하고,
+// readingText/koreanTranslation/luckyItemKo/detailFortunes 등 core 데이터 자체가
+// 잘못된 경우(repairable: false)나 Gemini 호출 자체가 실패한 경우는 곧바로 실패
+// 처리한다(전체를 다시 생성하는 재시도는 더 이상 하지 않는다 — Stage 8B-1의
+// "전체 재시도" 정책을 이 repair 정책으로 대체한다).
+export type GenerateAndValidateOutcome =
+  | { ok: true; data: ValidatedAiResult; usedRepair: boolean; totalCalls: number }
+  | { ok: false; reason: string; usedRepair: boolean; totalCalls: number };
+
+export async function generateAndValidateWithRetry(
+  originalText: string,
+  luckyItem: string
+): Promise<GenerateAndValidateOutcome> {
+  // 1. 최초 전체 생성
+  const geminiResult = await generateFortuneStudyData(originalText, luckyItem);
+  if (!geminiResult.ok) {
+    return { ok: false, reason: geminiResult.errorMessage, usedRepair: false, totalCalls: 1 };
+  }
+
+  const initialValidation = validateAiResult(geminiResult.json, originalText);
+  if (initialValidation.ok) {
+    return { ok: true, data: initialValidation.data, usedRepair: false, totalCalls: 1 };
+  }
+
+  if (!initialValidation.repairable) {
+    // core 데이터 자체가 잘못됨 — vocabulary repair로 고칠 수 없다. 즉시 실패 처리.
+    return { ok: false, reason: initialValidation.reason, usedRepair: false, totalCalls: 1 };
+  }
+
+  // 2. vocabulary 전용 repair (최대 1회). core 필드(readingText/koreanTranslation/
+  // luckyItemKo/detailFortunes)는 최초 응답에서 이미 검증을 통과했으므로 그대로
+  // 재사용하고 절대 다시 만들지 않는다 — GeminiCoreSchema로 안전하게 다시 꺼낸다.
+  const coreParsed = GeminiCoreSchema.safeParse(geminiResult.json);
+  if (!coreParsed.success) {
+    // repairable: true인 경우 core는 항상 파싱에 성공해야 하지만 방어적으로 처리.
+    return { ok: false, reason: initialValidation.reason, usedRepair: false, totalCalls: 1 };
+  }
+  const { readingText, koreanTranslation, luckyItemKo, detailFortunes } = coreParsed.data;
+
+  const originalLines = originalText.split('\n');
+  const orderedDetails = (['love', 'money', 'work'] as const).map(
+    (category) => detailFortunes.find((d) => d.category === category)!
+  );
+
+  const repairResult = await generateVocabularyRepair(originalLines, koreanTranslation, orderedDetails);
+  if (!repairResult.ok) {
+    return {
+      ok: false,
+      reason: `initial validation failed (${initialValidation.reason}); repair call failed: ${repairResult.errorMessage}`,
+      usedRepair: true,
+      totalCalls: 2,
+    };
+  }
+
+  const repairParsed = VocabularyRepairResponseSchema.safeParse(repairResult.json);
+  if (!repairParsed.success) {
+    return {
+      ok: false,
+      reason: `initial validation failed (${initialValidation.reason}); repair response schema invalid: ${repairParsed.error.message.slice(0, 200)}`,
+      usedRepair: true,
+      totalCalls: 2,
+    };
+  }
+
+  // 3. 최초 응답의 core 데이터 + repair된 vocabulary를 합쳐 전체 validation을
+  // 처음부터 다시 실행한다(detailFortunes는 최초 응답 그대로, 다시 만들지 않음).
+  const mergedJson = {
+    readingText,
+    koreanTranslation,
+    luckyItemKo,
+    detailFortunes,
+    vocabulary: repairParsed.data.vocabulary,
+  };
+
+  const finalValidation = validateAiResult(mergedJson, originalText);
+  if (!finalValidation.ok) {
+    return {
+      ok: false,
+      reason: `initial validation failed (${initialValidation.reason}); after repair: ${finalValidation.reason}`,
+      usedRepair: true,
+      totalCalls: 2,
+    };
+  }
+
+  return { ok: true, data: finalValidation.data, usedRepair: true, totalCalls: 2 };
 }
 
 interface PendingFortune {
@@ -38,25 +135,19 @@ async function processFortune(
 ): Promise<ProcessFortuneResult> {
   const dateNoDash = fortune.date.replaceAll('-', '');
 
-  // 1. Gemini 응답 생성
-  const geminiResult = await generateFortuneStudyData(fortune.original_text, fortune.lucky_item);
-  if (!geminiResult.ok) {
+  // 1~2. 최초 전체 생성 + 검증, 필요하면 vocabulary만 다시 뽑는 repair 최대 1회
+  // (fortune 1건당 Gemini 호출 최대 2회). 이 fortune 행 하나에만 영향을 주며,
+  // 같은 배치의 다른 별자리에는 영향을 주지 않는다(processFortune은 항상
+  // 별자리 1개 단위로 순차 호출된다).
+  const result = await generateAndValidateWithRetry(fortune.original_text, fortune.lucky_item);
+  if (!result.ok) {
     await supabase
       .from('fortunes')
-      .update({ ai_status: 'failed', ai_error_message: geminiResult.errorMessage.slice(0, 300) })
+      .update({ ai_status: 'failed', ai_error_message: result.reason.slice(0, 300) })
       .eq('id', fortune.id);
-    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: geminiResult.errorMessage };
+    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: result.reason };
   }
-
-  // 2. Zod + 원문 일치 검증
-  const validation = validateAiResult(geminiResult.json, fortune.original_text);
-  if (!validation.ok) {
-    await supabase
-      .from('fortunes')
-      .update({ ai_status: 'failed', ai_error_message: validation.reason.slice(0, 300) })
-      .eq('id', fortune.id);
-    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: validation.reason };
-  }
+  const validation: { ok: true; data: ValidatedAiResult } = { ok: true, data: result.data };
 
   // 3. deterministic vocabulary id 3개 생성 (원문/세부 운세 내 등장 순서 기준)
   const vocabWithIds = validation.data.vocabulary.map((v, index) => ({
@@ -66,16 +157,24 @@ async function processFortune(
     meaning: v.meaning,
     koreanText: v.koreanText,
     difficulty: v.difficulty,
-    japaneseSourceKey: v.japaneseSourceKey,
-    startIndex: v.startIndex,
+    partOfSpeech: v.partOfSpeech,
+    sourceKey: v.sourceKey,
+    sourceSentence: v.sourceSentence,
+    sourceSentenceReading: v.sourceSentenceReading,
+    sourceSentenceTranslation: v.sourceSentenceTranslation,
+    originalTextStartIndex: v.originalTextStartIndex,
     koreanPlacements: v.koreanPlacements,
   }));
 
-  // 일본어 segments(비표시용, 무결성 확인 전용)는 원문(original)에 실제로 위치한
+  // 일본어 segments(비표시용, 무결성 확인 전용)는 원문(main)에 실제로 위치한
   // 단어만 대상으로 한다 — 세부 운세에서 나온 단어는 originalText 기준 위치가 없다.
   const originalAnchoredVocab = vocabWithIds
-    .filter((v) => v.japaneseSourceKey === 'original')
-    .map((v) => ({ vocabularyId: v.vocabularyId, surfaceForm: v.surfaceForm, startIndex: v.startIndex }));
+    .filter((v) => v.sourceKey === 'main' && v.originalTextStartIndex !== null)
+    .map((v) => ({
+      vocabularyId: v.vocabularyId,
+      surfaceForm: v.surfaceForm,
+      startIndex: v.originalTextStartIndex as number,
+    }));
 
   const { segments, reconstructed } = buildSegments(fortune.original_text, originalAnchoredVocab);
   if (reconstructed !== fortune.original_text) {
@@ -141,6 +240,11 @@ async function processFortune(
       reading: v.reading,
       meaning: v.meaning,
       difficulty: v.difficulty,
+      part_of_speech: v.partOfSpeech,
+      source_key: v.sourceKey,
+      source_sentence: v.sourceSentence,
+      source_sentence_reading: v.sourceSentenceReading,
+      source_sentence_translation: v.sourceSentenceTranslation,
     })),
     { onConflict: 'id' }
   );
