@@ -8,7 +8,7 @@ import Avatar from '@/components/ui/Avatar';
 import ZodiacAsset from '@/components/ui/ZodiacAsset';
 import AuthTopNav from '@/components/common/AuthTopNav';
 import ZodiacTrackedLink from '@/components/common/ZodiacTrackedLink';
-import { ZODIAC_MONTH_LABELS } from '@/lib/zodiac';
+import { ZODIAC_PERIOD_LABELS } from '@/lib/zodiac';
 import type { ZodiacRankItem } from '@/types/fortune';
 
 const RANK_IMAGE_SRC: Record<1 | 2 | 3, string> = {
@@ -47,7 +47,7 @@ function TopRankCard({
 }) {
   const isFirst = item.rank === 1;
   const imageSrc = RANK_IMAGE_SRC[item.rank as 1 | 2 | 3];
-  const monthLabel = ZODIAC_MONTH_LABELS[item.zodiacId];
+  const periodLabel = ZODIAC_PERIOD_LABELS[item.zodiacId];
 
   return (
     <div className={['min-w-0 max-w-[140px] flex-1', className].filter(Boolean).join(' ')}>
@@ -66,12 +66,12 @@ function TopRankCard({
         <div className="relative aspect-square w-full">
           <ZodiacAsset zodiac={item.zodiacId} alt="" />
         </div>
-        <div className="mt-0 flex items-center gap-2 text-b2-medium">
-          <span className={isFirst ? 'text-[var(--text-inverse)]' : 'text-[var(--text-primary)]'}>
+        <div className="mt-0 flex flex-col items-center gap-0.5 px-1 text-center">
+          <span className={`text-b2-medium ${isFirst ? 'text-[var(--text-inverse)]' : 'text-[var(--text-primary)]'}`}>
             {item.zodiacKorean}
           </span>
-          <span className={isFirst ? 'text-[var(--text-inverse)]' : 'text-[var(--text-primary)]'}>
-            {monthLabel}
+          <span className={`text-caption leading-tight break-keep ${isFirst ? 'text-[var(--text-inverse)]' : 'text-[var(--text-secondary)]'}`}>
+            {periodLabel}
           </span>
         </div>
       </ZodiacTrackedLink>
@@ -127,7 +127,7 @@ export default async function HomePage() {
                         </Avatar>
                       }
                       title={item.zodiacKorean}
-                      period={ZODIAC_MONTH_LABELS[item.zodiacId]}
+                      period={ZODIAC_PERIOD_LABELS[item.zodiacId]}
                       href={`/fortune/${item.zodiacId}`}
                       zodiacId={item.zodiacId}
                     />

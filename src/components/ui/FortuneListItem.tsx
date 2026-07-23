@@ -18,10 +18,10 @@ export default function FortuneListItem({ avatar, title, period, href, zodiacId 
   const content = (
     <>
       <div className="shrink-0">{avatar}</div>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-b2-medium text-[var(--text-primary)]">{title}</p>
         {period && (
-          <p className="shrink-0 text-b2-medium text-[var(--text-primary)]">{period}</p>
+          <p className="truncate text-caption text-[var(--text-secondary)]">{period}</p>
         )}
       </div>
       <div className="h-6 w-6 shrink-0">
