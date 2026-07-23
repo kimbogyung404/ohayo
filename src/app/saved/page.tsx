@@ -184,17 +184,23 @@ export default function SavedPage() {
 
       {/* 헤더 */}
       <div className="flex items-start justify-between px-[var(--page-padding-x)] pt-6">
-        <h1 className="text-h1 text-[var(--text-primary)]">
+        <h1 className="min-w-0 text-h1 text-[var(--text-primary)]">
           저장된 단어{' '}
           <span className="text-[var(--text-brand)]">{savedWords.length}개</span>
         </h1>
 
-        <div className="flex flex-col items-end gap-1">
+        {/* 삭제 모드일 때 "취소"를 "N개 삭제하기"와 같은 행에, 왼쪽에 나란히 배치한다
+            (기존에는 위아래로 쌓여 있어 "삭제 버튼 옆" 배치 요구와 어긋났다). 텍스트
+            버튼 스타일·토큰은 기존 그대로 재사용, 새 색상 없음. gap을 좁혀(3→2) 두
+            버튼이 한 묶음처럼 보이도록 하고, shrink-0으로 제목이 길어져도(예: 두 자리
+            수 저장 개수) 이 액션 영역과 삭제 버튼 문구가 절대 압축·줄바꿈되지 않도록
+            보장한다(whitespace-nowrap도 방어적으로 추가). */}
+        <div className="flex shrink-0 items-center gap-2">
           {deleteMode && (
             <button
               type="button"
               onClick={cancelDeleteMode}
-              className="text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1"
+              className="whitespace-nowrap text-caption text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded px-1"
             >
               취소
             </button>
@@ -204,6 +210,7 @@ export default function SavedPage() {
             size="small"
             disabled={deleteMode && selectedIds.size === 0}
             onClick={deleteMode ? handleDeleteRequest : enterDeleteMode}
+            className="whitespace-nowrap"
           >
             {deleteButtonLabel}
           </Button>
