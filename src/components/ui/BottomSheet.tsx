@@ -17,9 +17,14 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // 배경 클릭 시 닫기
+  // 배경(dim 영역) 클릭 시 닫기. dim은 오버레이 컨테이너를 꽉 채우는 자식 요소라
+  // 실제 클릭 지점의 e.target은 항상 그 자식(또는 시트 내부 요소)이지 컨테이너
+  // 자신(e.currentTarget)이 될 수 없다 — 그래서 시트 콘텐츠 바깥(=dim 영역)에서
+  // 발생한 클릭인지는 시트 본체(sheetRef) 안쪽인지 여부로 판단한다.
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
+    if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
+      onClose();
+    }
   };
 
   // ESC 키로 닫기

@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { ToastProvider } from '@/components/ui/Toast';
 import SplashScreen from '@/components/common/SplashScreen';
+import OnboardingScreen from '@/components/common/OnboardingScreen';
 import PageViewTracker from '@/components/common/PageViewTracker';
 import { SPLASH_INIT_SCRIPT } from '@/lib/splash';
 
@@ -46,6 +47,9 @@ export default function RootLayout({
       <body className="h-full">
         <PageViewTracker />
         <SplashScreen />
+        {/* 스플래시(z-index 9999)보다 낮은 z-index로 그 바로 뒤에 마운트한다 — 스플래시가
+            사라지면 최초 방문자에게만 이 온보딩이 자연스럽게 드러난다(src/components/common/OnboardingScreen.tsx 참고). */}
+        <OnboardingScreen />
         <ToastProvider>
           <div id="app-container">
             <main>{children}</main>

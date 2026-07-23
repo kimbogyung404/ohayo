@@ -652,8 +652,8 @@ export default function FortuneDetailPage() {
 
         {/* 오늘의 운세 — 한국어 본문, 핵심 단어 3개만 확인 전 일본어 */}
         <section aria-label="오늘의 운세" className="mb-6">
-          <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-            1. 오늘의 운세
+          <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+            🔮 오늘의 운세
           </h2>
           <KoreanSegmentedText
             segments={koreanSegments}
@@ -666,8 +666,8 @@ export default function FortuneDetailPage() {
 
         {/* 행운의 장소와 아이템 — 동일한 방식(DB에 저장된 한국어 세그먼트) */}
         <section aria-label="행운의 장소와 아이템" className="mb-6">
-          <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-            2. 행운의 장소와 아이템
+          <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+            🍀 행운의 장소와 아이템
           </h2>
           <KoreanSegmentedText
             segments={luckyItemKoSegments}
@@ -681,8 +681,8 @@ export default function FortuneDetailPage() {
             공식 운세(위 1, 2)와 같은 섹션 형식으로 자연스럽게 이어서 보여준다. */}
         {loveDetail && (
           <section aria-label="오늘의 연애·인간관계운" className="mb-6">
-            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-              3. 오늘의 연애·인간관계운
+            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+              💖 오늘의 연애·인간관계운
             </h2>
             <KoreanSegmentedText
               segments={loveDetail.koreanSegments}
@@ -695,8 +695,8 @@ export default function FortuneDetailPage() {
 
         {moneyDetail && (
           <section aria-label="오늘의 금전운" className="mb-6">
-            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-              4. 오늘의 금전운
+            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+              💰 오늘의 금전운
             </h2>
             <KoreanSegmentedText
               segments={moneyDetail.koreanSegments}
@@ -709,8 +709,8 @@ export default function FortuneDetailPage() {
 
         {workDetail && (
           <section aria-label="오늘의 일·학업운">
-            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-              5. 오늘의 일·학업운
+            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+              💼 오늘의 일·학업운
             </h2>
             <KoreanSegmentedText
               segments={workDetail.koreanSegments}

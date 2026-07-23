@@ -15,27 +15,15 @@ export default function LoginPromptSheet({
   onLogin,
 }: LoginPromptSheetProps) {
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="단어를 저장하려면 로그인이 필요해요.">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="고른 단어를 저장해 둘까요?">
       <div className="px-5 pb-8 pt-4 space-y-5">
-        {/* 안내 텍스트 */}
+        {/* 안내 텍스트 — 가입을 강요하기보다 단어 저장을 권유하는 짧은 문구만 유지한다.
+            혜택 목록·개인정보 안내 등 부가 설명은 두지 않는다. */}
         <p className="text-b2-regular text-[var(--text-secondary)] leading-relaxed">
-          Google 계정으로 로그인하면 저장한 단어를 다시 복습하고
-          다른 기기에서도 이어서 학습할 수 있어요.
+          구글로 로그인하면
+          <br />
+          오늘 고른 단어를 다음에도 다시 볼 수 있어요.
         </p>
-
-        {/* 혜택 목록 */}
-        <ul className="space-y-2" aria-label="로그인 혜택">
-          {[
-            '저장한 단어를 플래시카드로 복습',
-            '다른 기기에서도 저장 내역 동기화',
-            '언제 어디서나 꺼내볼 수 있는 단어장',
-          ].map((benefit) => (
-            <li key={benefit} className="flex items-center gap-2 text-b2-regular text-[var(--text-primary)]">
-              <span className="text-[var(--color-success)] font-bold" aria-hidden="true">✓</span>
-              {benefit}
-            </li>
-          ))}
-        </ul>
 
         {/* Google 로그인 버튼 */}
         <Button
@@ -49,23 +37,14 @@ export default function LoginPromptSheet({
           Google로 계속하기
         </Button>
 
-        {/* 나중에 하기 */}
+        {/* 다음에 할게요 */}
         <button
           type="button"
           onClick={onClose}
           className="w-full text-center text-b2-regular text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors py-1 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] rounded"
         >
-          나중에 하기
+          다음에 할게요
         </button>
-
-        {/* 개인정보 안내 */}
-        <p className="text-caption text-[var(--text-disabled)] text-center">
-          로그인 시{' '}
-          <span className="underline cursor-pointer hover:text-[var(--text-tertiary)]">
-            개인정보 처리방침
-          </span>
-          에 동의하게 됩니다.
-        </p>
       </div>
     </BottomSheet>
   );
