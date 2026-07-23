@@ -664,6 +664,7 @@ export default function FortuneDetailPage() {
             vocabulary={fortune.vocabulary}
             checkedWordIds={checkedWordIds}
             onWordClick={openWordOverlay}
+            showFirstVocabHint
           />
         </section>
 
@@ -680,56 +681,49 @@ export default function FortuneDetailPage() {
           />
         </section>
 
-        {/* 세부 운세(연애·금전·일학업) — 공식 오하아사 소스에는 없는 AI 보충 콘텐츠다.
-            공식 운세(위 1, 2)와 시각적으로 구분되도록 별도 배경 카드로 감싼다. */}
-        <div className="rounded-[var(--radius-lg)] bg-[var(--surface-subtle)] p-4">
-          <div className="mb-4 flex items-center gap-1.5 text-caption text-[var(--text-tertiary)]">
-            <Icon name="info" size={14} aria-hidden="true" />
-            <span>공식 운세를 바탕으로 AI가 보충한 콘텐츠예요.</span>
-          </div>
+        {/* 세부 운세(연애·금전·일학업) — 공식 오하아사 소스에는 없는 AI 보충 콘텐츠지만,
+            공식 운세(위 1, 2)와 같은 섹션 형식으로 자연스럽게 이어서 보여준다. */}
+        {loveDetail && (
+          <section aria-label="오늘의 연애·인간관계운" className="mb-6">
+            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+              3. 오늘의 연애·인간관계운
+            </h2>
+            <KoreanSegmentedText
+              segments={loveDetail.koreanSegments}
+              vocabulary={fortune.vocabulary}
+              checkedWordIds={checkedWordIds}
+              onWordClick={openWordOverlay}
+            />
+          </section>
+        )}
 
-          {loveDetail && (
-            <section aria-label="오늘의 연애·인간관계운" className="mb-6">
-              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-                3. 오늘의 연애·인간관계운
-              </h2>
-              <KoreanSegmentedText
-                segments={loveDetail.koreanSegments}
-                vocabulary={fortune.vocabulary}
-                checkedWordIds={checkedWordIds}
-                onWordClick={openWordOverlay}
-              />
-            </section>
-          )}
+        {moneyDetail && (
+          <section aria-label="오늘의 금전운" className="mb-6">
+            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+              4. 오늘의 금전운
+            </h2>
+            <KoreanSegmentedText
+              segments={moneyDetail.koreanSegments}
+              vocabulary={fortune.vocabulary}
+              checkedWordIds={checkedWordIds}
+              onWordClick={openWordOverlay}
+            />
+          </section>
+        )}
 
-          {moneyDetail && (
-            <section aria-label="오늘의 금전운" className="mb-6">
-              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-                4. 오늘의 금전운
-              </h2>
-              <KoreanSegmentedText
-                segments={moneyDetail.koreanSegments}
-                vocabulary={fortune.vocabulary}
-                checkedWordIds={checkedWordIds}
-                onWordClick={openWordOverlay}
-              />
-            </section>
-          )}
-
-          {workDetail && (
-            <section aria-label="오늘의 일·학업운">
-              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
-                5. 오늘의 일·학업운
-              </h2>
-              <KoreanSegmentedText
-                segments={workDetail.koreanSegments}
-                vocabulary={fortune.vocabulary}
-                checkedWordIds={checkedWordIds}
-                onWordClick={openWordOverlay}
-              />
-            </section>
-          )}
-        </div>
+        {workDetail && (
+          <section aria-label="오늘의 일·학업운">
+            <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+              5. 오늘의 일·학업운
+            </h2>
+            <KoreanSegmentedText
+              segments={workDetail.koreanSegments}
+              vocabulary={fortune.vocabulary}
+              checkedWordIds={checkedWordIds}
+              onWordClick={openWordOverlay}
+            />
+          </section>
+        )}
       </div>
 
       {/* 복습 진입 CTA — 3/3을 달성한 순간에만 생성된다(항상 마운트된 채 숨겨두지 않음).
