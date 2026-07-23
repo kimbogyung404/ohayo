@@ -23,24 +23,17 @@ export default function VocabHighlight({
   ...props
 }: VocabHighlightProps) {
   return (
-    <span
-      className={[
-        'relative inline-block',
-        // 툴팁이 위로 뜰 공간은 이 하이라이트의 래퍼에만 준다 — 문단 전체를 밀어내지
-        // 않고, 첫 하이라이트가 있는 줄만 필요한 만큼 살짝 커진다.
-        hint ? 'mt-12' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <span className="relative inline-block">
       {hint && !selected && (
-        // Tooltip 내부 버블은 max-w-full이라 이 span(=하이라이트 버튼 폭)에 맞춰 좁아진다.
-        // "復活"처럼 짧은 단어가 첫 하이라이트일 때 버튼이 좁아 문구가 3줄로 접히며
-        // 예상보다 훨씬 높아지는 문제가 있어, 단어 폭과 무관하게 한 줄에 들어가도록
-        // 최소 너비만 지정한다(타이포·색상·radius·shadow·화살표는 그대로).
+        // 레이아웃 흐름에서 완전히 제외한다(absolute) — 주변 텍스트 간격에 전혀 영향을
+        // 주지 않으며, 위에 있는 다른 요소를 가리는 것도 허용한다. z-index를 높게 줘서
+        // 항상 최상단에 떠 보이도록 한다. Tooltip 내부 버블은 max-w-full이라 이
+        // span(=하이라이트 버튼 폭)에 맞춰 좁아지는데, "復活"처럼 짧은 단어가 첫
+        // 하이라이트일 때 버튼이 좁아 문구가 3줄로 접히는 걸 막기 위해 최소 너비만
+        // 지정한다(타이포·색상·radius·shadow·화살표는 그대로).
         <Tooltip
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full left-0 z-10 mb-0.5 min-w-[160px]"
+          className="pointer-events-none absolute bottom-full left-0 z-50 mb-0.5 min-w-[160px]"
         >
           {hint}
         </Tooltip>
