@@ -39,17 +39,10 @@ export default function KoreanSegmentedText({
   );
 
   return (
-    <p
-      className={[
-        'text-b1-medium text-[var(--text-primary)] leading-[1.4]',
-        // 첫 하이라이트 안내 툴팁이 위로 뜰 공간을 확보한다 — 섹션 제목과의 기존 여백(12px)만으로는
-        // 툴팁(약 25px + 2px 간격)이 들어갈 자리가 없어 제목과 겹친다.
-        showFirstVocabHint ? 'mt-5' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      lang="ko"
-    >
+    // 디자인 시스템 Tooltip이 내부적으로 <div>를 쓰기 때문에(HTML은 <p> 안에 <div>를
+    // 허용하지 않는다) 문단 컨테이너를 <p>가 아닌 <div>로 렌더링한다. 타이포/줄간격은
+    // 동일한 클래스를 그대로 유지해 시각적으로는 차이가 없다.
+    <div className="text-b1-medium text-[var(--text-primary)] leading-[1.4]" lang="ko">
       {segments.map((segment, index) => {
         if (segment.type === 'text') {
           return <span key={index}>{segment.text}</span>;
@@ -70,6 +63,6 @@ export default function KoreanSegmentedText({
           </VocabHighlight>
         );
       })}
-    </p>
+    </div>
   );
 }

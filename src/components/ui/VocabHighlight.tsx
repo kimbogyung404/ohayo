@@ -1,11 +1,14 @@
 'use client';
 
 import { ButtonHTMLAttributes, ReactNode } from 'react';
+import Tooltip from './Tooltip';
 
 interface VocabHighlightProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   selected?: boolean;
   // 페이지 전체에서 첫 번째 단어 하이라이트에만 전달한다. 탭 가능하다는 것을 알려주는
   // 1회성 안내이며, selected(확인 완료)가 되는 순간 자동으로 사라진다.
+  // 디자인 시스템 Tooltip(components/ui/Tooltip.tsx)을 그대로 사용한다 — 별도 말풍선
+  // 스타일을 새로 만들지 않는다.
   hint?: string;
   children: ReactNode;
 }
@@ -20,14 +23,27 @@ export default function VocabHighlight({
   ...props
 }: VocabHighlightProps) {
   return (
-    <span className="relative inline-block">
+    <span
+      className={[
+        'relative inline-block',
+        // 툴팁이 위로 뜰 공간은 이 하이라이트의 래퍼에만 준다 — 문단 전체를 밀어내지
+        // 않고, 첫 하이라이트가 있는 줄만 필요한 만큼 살짝 커진다.
+        hint ? 'mt-12' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {hint && !selected && (
-        <span
+        // Tooltip 내부 버블은 max-w-full이라 이 span(=하이라이트 버튼 폭)에 맞춰 좁아진다.
+        // "復活"처럼 짧은 단어가 첫 하이라이트일 때 버튼이 좁아 문구가 3줄로 접히며
+        // 예상보다 훨씬 높아지는 문제가 있어, 단어 폭과 무관하게 한 줄에 들어가도록
+        // 최소 너비만 지정한다(타이포·색상·radius·shadow·화살표는 그대로).
+        <Tooltip
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-full left-0 mb-0.5 whitespace-nowrap rounded-[var(--radius-sm)] bg-[var(--gray-700)] px-2 py-1 text-caption text-[var(--text-inverse)] shadow-[var(--shadow-200)]"
+          className="pointer-events-none absolute bottom-full left-0 z-10 mb-0.5 min-w-[160px]"
         >
           {hint}
-        </span>
+        </Tooltip>
       )}
       <button
         type="button"

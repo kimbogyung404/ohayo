@@ -17,17 +17,12 @@ const RANK_IMAGE_SRC: Record<1 | 2 | 3, string> = {
   3: '/images/ranking/rank-3.png',
 };
 
-// 홈 제목은 운세 데이터 기준일(readyDate)이 아니라 접속 시점의 실제 오늘 날짜를
-// 보여준다. 서버가 어느 타임존에서 실행되든 항상 한국 시간(Asia/Seoul) 기준으로
-// 계산해야 하므로 timeZone을 명시한다.
-function formatTodayLabel(): string {
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  }).format(new Date());
+// 홈 제목은 접속 시점의 실제 오늘 날짜가 아니라 화면에 표시 중인 랭킹 데이터의
+// 기준일(readyDate)을 보여준다 — Cron이 지연되어 최신 데이터가 어제 날짜일 때도
+// 제목과 실제로 보여지는 순위가 항상 일치해야 하기 때문이다. readyDate는 Postgres
+// date 컬럼이 그대로 내려온 "YYYY-MM-DD" 문자열이라 별도 파싱 없이 포맷만 바꾼다.
+function formatDateLabel(readyDate: string): string {
+  return readyDate.replaceAll('-', '.');
 }
 
 function RankBadge({ rank }: { rank: number }) {
@@ -84,17 +79,17 @@ export default async function HomePage() {
   const readyDate = await getLatestReadyDate(supabase);
   const ranking = readyDate ? await getRankingForDate(supabase, readyDate) : [];
 
-  const dateLabel = formatTodayLabel();
-
   const [first, second, third, ...rest] = ranking;
 
   return (
     <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
       <AuthTopNav />
 
-      <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
-        {dateLabel} 별자리 운세
-      </p>
+      {readyDate && (
+        <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+          {formatDateLabel(readyDate)} 별자리 운세 순위
+        </p>
+      )}
 
       {ranking.length === 0 ? (
         <EmptyState
