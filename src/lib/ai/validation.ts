@@ -1,42 +1,69 @@
 import { z } from 'zod';
-import type { KoreanSegment, Segment } from '@/types/fortune';
+import type { FortuneDetailCategory, KoreanSegment, Segment } from '@/types/fortune';
 
 // Gemini에게는 "원문 표기(surfaceForm)"만 요청한다.
 // 사전형(word) 필드는 별도로 요청하지 않는다 — word는 항상 surfaceForm과 동일한 값을 저장한다
 // (원문에 없는 활용 전 기본형이 임의로 저장되는 것을 원천 차단하기 위함).
 // koreanText는 meaning(사전형/의역)과 달리 koreanTranslation 또는 luckyItemKo 안에
 // 실제로 등장하는 활용형이어야 한다 — 아래 검증에서 문자열 존재 여부를 직접 확인한다.
+// difficulty는 Gemini가 스스로 선정한 난이도 태그다(외부 JLPT 공식 판정이 아니다).
 const GeminiVocabularySchema = z.object({
   surfaceForm: z.string(),
   reading: z.string(),
   meaning: z.string(),
   koreanText: z.string(),
+  difficulty: z.enum(['easy', 'challenge']),
+});
+
+// 공식 소스에는 없는 세부 운세 3종(연애/금전/일·학업). original_text를 근거로 M5가
+// 새로 생성하며, category는 love/money/work 중 하나씩 정확히 한 번 등장해야 한다.
+const DetailFortuneCategorySchema = z.enum(['love', 'money', 'work']);
+
+const GeminiDetailFortuneSchema = z.object({
+  category: DetailFortuneCategorySchema,
+  japaneseText: z.string(),
+  koreanTranslation: z.string(),
 });
 
 export const GeminiOutputSchema = z.object({
   readingText: z.string(),
   koreanTranslation: z.string(),
   luckyItemKo: z.string(),
+  detailFortunes: z.array(GeminiDetailFortuneSchema).length(3),
   vocabulary: z.array(GeminiVocabularySchema).length(3),
 });
 
 export type GeminiOutput = z.infer<typeof GeminiOutputSchema>;
+
+// vocabulary의 일본어 원문 출처: 공식 원문(original) 또는 세부 운세 3종 중 하나.
+export type JapaneseSourceKey = 'original' | FortuneDetailCategory;
+// vocabulary의 한국어 연결 대상: 본문 번역(main), 행운 아이템 번역(luckyItem),
+// 세부 운세 3종의 번역 중 하나 이상.
+export type KoreanSourceKey = 'main' | 'luckyItem' | FortuneDetailCategory;
+
+export interface ValidatedDetailFortuneEntry {
+  category: FortuneDetailCategory;
+  japaneseText: string;
+  koreanTranslation: string;
+}
 
 export interface ValidatedVocabularyEntry {
   surfaceForm: string;
   reading: string;
   meaning: string;
   koreanText: string;
-  startIndex: number;                    // originalText 안의 위치
-  koreanStartIndex: number | null;       // koreanTranslation 안의 위치 (없으면 null)
-  luckyItemKoStartIndex: number | null;  // luckyItemKo 안의 위치 (없으면 null)
+  difficulty: 'easy' | 'challenge';
+  japaneseSourceKey: JapaneseSourceKey;                        // surfaceForm이 등장한 출처
+  startIndex: number;                                          // 해당 출처 텍스트 안의 위치
+  koreanPlacements: Partial<Record<KoreanSourceKey, number>>;  // 등장이 확인된 한국어 텍스트별 위치
 }
 
 export interface ValidatedAiResult {
   readingText: string;
   koreanTranslation: string;
   luckyItemKo: string;
-  vocabulary: ValidatedVocabularyEntry[]; // startIndex(원문 기준) 오름차순 정렬됨
+  detailFortunes: ValidatedDetailFortuneEntry[]; // 항상 [love, money, work] 고정 순서
+  vocabulary: ValidatedVocabularyEntry[];
 }
 
 export type AiValidationResult =
@@ -84,13 +111,20 @@ function findOverlap<T extends { startIndex: number; length: number; label: stri
 
 // Gemini 원본 JSON + original_text를 받아 스키마/비즈니스 규칙을 모두 검증한다.
 // 하나라도 실패하면 전체를 실패로 처리한다(부분 통과 없음).
+//
+// vocabulary는 이제 원문(originalText) 하나가 아니라, 원문 + 세부 운세 3종의
+// japaneseText까지 합친 4개 텍스트 풀 중 정확히 한 곳에서만 등장해야 하며,
+// koreanText는 koreanTranslation/luckyItemKo/세부 운세 3종의 koreanTranslation
+// 총 5개 텍스트 중 하나 이상에서 등장해야 한다. 기존 2텍스트(원문·koreanTranslation
+// 또는 luckyItemKo) 검증 로직을 소스 목록 순회로 일반화한 것으로, 로직 자체는
+// 동일하다(countOccurrences/locateUniqueOccurrence/findOverlap 재사용).
 export function validateAiResult(json: unknown, originalText: string): AiValidationResult {
   const parsed = GeminiOutputSchema.safeParse(json);
   if (!parsed.success) {
     return { ok: false, reason: `schema validation failed: ${parsed.error.message.slice(0, 200)}` };
   }
 
-  const { readingText, koreanTranslation, luckyItemKo, vocabulary } = parsed.data;
+  const { readingText, koreanTranslation, luckyItemKo, detailFortunes, vocabulary } = parsed.data;
 
   if (readingText.trim() === '') {
     return { ok: false, reason: 'readingText is empty' };
@@ -112,10 +146,58 @@ export function validateAiResult(json: unknown, originalText: string): AiValidat
     };
   }
 
+  // detailFortunes: love/money/work가 각각 정확히 한 번씩 있어야 한다.
+  const categories = detailFortunes.map((d) => d.category);
+  if (new Set(categories).size !== 3) {
+    return {
+      ok: false,
+      reason: `detailFortunes categories must be love/money/work exactly once each, got: ${categories.join(',')}`,
+    };
+  }
+  for (const d of detailFortunes) {
+    if (d.japaneseText.trim() === '') {
+      return { ok: false, reason: `detailFortunes[${d.category}].japaneseText is empty` };
+    }
+    if (d.koreanTranslation.trim() === '') {
+      return { ok: false, reason: `detailFortunes[${d.category}].koreanTranslation is empty` };
+    }
+  }
+  // 이후 고정 순서(love, money, work)로 다룬다 — DB/프론트가 항상 이 순서를 기대한다.
+  const orderedDetails = (['love', 'money', 'work'] as const).map(
+    (category) => detailFortunes.find((d) => d.category === category)!
+  );
+
+  // vocabulary의 일본어 검색 풀: 원문 + 세부 운세 3종
+  const japaneseSources: { key: JapaneseSourceKey; text: string }[] = [
+    { key: 'original', text: originalText },
+    { key: 'love', text: orderedDetails[0].japaneseText },
+    { key: 'money', text: orderedDetails[1].japaneseText },
+    { key: 'work', text: orderedDetails[2].japaneseText },
+  ];
+
+  // vocabulary의 한국어 검색 풀: 본문 번역 + 행운 아이템 번역 + 세부 운세 3종 번역
+  const koreanSources: { key: KoreanSourceKey; text: string }[] = [
+    { key: 'main', text: koreanTranslation },
+    { key: 'luckyItem', text: luckyItemKo },
+    { key: 'love', text: orderedDetails[0].koreanTranslation },
+    { key: 'money', text: orderedDetails[1].koreanTranslation },
+    { key: 'work', text: orderedDetails[2].koreanTranslation },
+  ];
+
   // 3개 surfaceForm이 서로 달라야 한다.
   const surfaceForms = vocabulary.map((v) => v.surfaceForm);
   if (new Set(surfaceForms).size !== 3) {
     return { ok: false, reason: 'duplicate surfaceForm detected' };
+  }
+
+  // 난이도 구성: 쉬운 단어 2개 + 도전 단어 1개.
+  const easyCount = vocabulary.filter((v) => v.difficulty === 'easy').length;
+  const challengeCount = vocabulary.filter((v) => v.difficulty === 'challenge').length;
+  if (easyCount !== 2 || challengeCount !== 1) {
+    return {
+      ok: false,
+      reason: `vocabulary difficulty mix must be 2 easy + 1 challenge, got ${easyCount} easy / ${challengeCount} challenge`,
+    };
   }
 
   const withPositions: ValidatedVocabularyEntry[] = [];
@@ -134,39 +216,52 @@ export function validateAiResult(json: unknown, originalText: string): AiValidat
       return { ok: false, reason: `empty koreanText for surfaceForm "${v.surfaceForm}"` };
     }
 
-    const occurrences = countOccurrences(originalText, v.surfaceForm);
-    if (occurrences === 0) {
-      return { ok: false, reason: `surfaceForm not found in original text: "${v.surfaceForm}"` };
+    // surfaceForm은 4개 일본어 소스 중 하나에서 위치가 확정되면 된다 — 소스가 여러 개인
+    // 이상, 같은 단어가 원문과 세부 운세 양쪽에 각각 한 번씩 등장하는 것은 자연스러운
+    // 일이며 그 자체로 모호한 게 아니다(진짜 모호함은 "같은 소스 안에서" 여러 번
+    // 등장해 위치를 하나로 정할 수 없는 경우다). 우선순위(원문 → love → money → work)
+    // 순서로 각 소스를 개별 확인해, 그 소스 안에서 정확히 한 번만 등장하는 첫 소스를
+    // 앵커로 채택한다.
+    let matchedSource: JapaneseSourceKey | null = null;
+    let matchedStartIndex = -1;
+    let foundButAmbiguousAnywhere = false;
+    for (const src of japaneseSources) {
+      const count = countOccurrences(src.text, v.surfaceForm);
+      if (count > 1) foundButAmbiguousAnywhere = true;
+      if (count === 1 && matchedSource === null) {
+        matchedSource = src.key;
+        matchedStartIndex = src.text.indexOf(v.surfaceForm);
+        break;
+      }
     }
-    if (occurrences > 1) {
+    if (matchedSource === null) {
       return {
         ok: false,
-        reason: `ambiguous surfaceForm occurrence (${occurrences}x), position unclear: "${v.surfaceForm}"`,
+        reason: foundButAmbiguousAnywhere
+          ? `ambiguous surfaceForm occurrence, position unclear within its source: "${v.surfaceForm}"`
+          : `surfaceForm not found in original text or detail fortunes: "${v.surfaceForm}"`,
       };
     }
 
-    const startIndex = originalText.indexOf(v.surfaceForm);
-
-    // koreanText는 koreanTranslation 또는 luckyItemKo 중 최소 한 곳에 정확히 한 번
-    // 등장해야 한다. 둘 다에 없으면(=번역문 어디에도 연결되지 않으면) 실패 처리한다.
-    const inKorean = locateUniqueOccurrence(koreanTranslation, v.koreanText);
-    if (inKorean.kind === 'ambiguous') {
-      return {
-        ok: false,
-        reason: `ambiguous koreanText occurrence in koreanTranslation, position unclear: "${v.koreanText}"`,
-      };
+    // koreanText는 5개 한국어 소스 중 하나 이상에 정확히 한 번씩 등장해야 한다.
+    // 등장이 확인된 곳은 전부 기록한다(여러 섹션에서 동시에 핫스팟이 될 수 있다).
+    const koreanPlacements: Partial<Record<KoreanSourceKey, number>> = {};
+    for (const src of koreanSources) {
+      const located = locateUniqueOccurrence(src.text, v.koreanText);
+      if (located.kind === 'ambiguous') {
+        return {
+          ok: false,
+          reason: `ambiguous koreanText occurrence in ${src.key}, position unclear: "${v.koreanText}"`,
+        };
+      }
+      if (located.kind === 'found') {
+        koreanPlacements[src.key] = located.startIndex;
+      }
     }
-    const inLuckyItem = locateUniqueOccurrence(luckyItemKo, v.koreanText);
-    if (inLuckyItem.kind === 'ambiguous') {
+    if (Object.keys(koreanPlacements).length === 0) {
       return {
         ok: false,
-        reason: `ambiguous koreanText occurrence in luckyItemKo, position unclear: "${v.koreanText}"`,
-      };
-    }
-    if (inKorean.kind === 'none' && inLuckyItem.kind === 'none') {
-      return {
-        ok: false,
-        reason: `koreanText not found in koreanTranslation or luckyItemKo: "${v.koreanText}"`,
+        reason: `koreanText not found in any Korean text (main/luckyItem/love/money/work): "${v.koreanText}"`,
       };
     }
 
@@ -175,58 +270,56 @@ export function validateAiResult(json: unknown, originalText: string): AiValidat
       reading: v.reading,
       meaning: v.meaning,
       koreanText: v.koreanText,
-      startIndex,
-      koreanStartIndex: inKorean.kind === 'found' ? inKorean.startIndex : null,
-      luckyItemKoStartIndex: inLuckyItem.kind === 'found' ? inLuckyItem.startIndex : null,
+      difficulty: v.difficulty,
+      japaneseSourceKey: matchedSource as JapaneseSourceKey,
+      startIndex: matchedStartIndex,
+      koreanPlacements,
     });
   }
 
-  withPositions.sort((a, b) => a.startIndex - b.startIndex);
-
-  // 겹치는 범위 거부 (원문 기준)
-  const originalOverlap = findOverlap(
-    withPositions.map((v) => ({ startIndex: v.startIndex, length: v.surfaceForm.length, label: v.surfaceForm }))
-  );
-  if (originalOverlap) {
-    return {
-      ok: false,
-      reason: `overlapping vocabulary ranges: "${originalOverlap.a}" / "${originalOverlap.b}"`,
-    };
+  // 겹치는 범위 거부 (일본어 소스별로 그룹화)
+  for (const src of japaneseSources) {
+    const itemsInSource = withPositions
+      .filter((v) => v.japaneseSourceKey === src.key)
+      .map((v) => ({ startIndex: v.startIndex, length: v.surfaceForm.length, label: v.surfaceForm }))
+      .sort((a, b) => a.startIndex - b.startIndex);
+    const overlap = findOverlap(itemsInSource);
+    if (overlap) {
+      return {
+        ok: false,
+        reason: `overlapping vocabulary ranges in ${src.key}: "${overlap.a}" / "${overlap.b}"`,
+      };
+    }
   }
 
-  // 겹치는 범위 거부 (koreanTranslation 기준 — koreanStartIndex가 있는 항목만)
-  const koreanPlacements = withPositions
-    .filter((v) => v.koreanStartIndex !== null)
-    .map((v) => ({ startIndex: v.koreanStartIndex as number, length: v.koreanText.length, label: v.koreanText }))
-    .sort((a, b) => a.startIndex - b.startIndex);
-  const koreanOverlap = findOverlap(koreanPlacements);
-  if (koreanOverlap) {
-    return {
-      ok: false,
-      reason: `overlapping koreanText ranges in koreanTranslation: "${koreanOverlap.a}" / "${koreanOverlap.b}"`,
-    };
-  }
-
-  // 겹치는 범위 거부 (luckyItemKo 기준 — luckyItemKoStartIndex가 있는 항목만)
-  const luckyItemPlacements = withPositions
-    .filter((v) => v.luckyItemKoStartIndex !== null)
-    .map((v) => ({
-      startIndex: v.luckyItemKoStartIndex as number,
-      length: v.koreanText.length,
-      label: v.koreanText,
-    }))
-    .sort((a, b) => a.startIndex - b.startIndex);
-  const luckyItemOverlap = findOverlap(luckyItemPlacements);
-  if (luckyItemOverlap) {
-    return {
-      ok: false,
-      reason: `overlapping koreanText ranges in luckyItemKo: "${luckyItemOverlap.a}" / "${luckyItemOverlap.b}"`,
-    };
+  // 겹치는 범위 거부 (한국어 소스별로 그룹화)
+  for (const src of koreanSources) {
+    const itemsInSource = withPositions
+      .filter((v) => v.koreanPlacements[src.key] !== undefined)
+      .map((v) => ({
+        startIndex: v.koreanPlacements[src.key] as number,
+        length: v.koreanText.length,
+        label: v.koreanText,
+      }))
+      .sort((a, b) => a.startIndex - b.startIndex);
+    const overlap = findOverlap(itemsInSource);
+    if (overlap) {
+      return {
+        ok: false,
+        reason: `overlapping koreanText ranges in ${src.key}: "${overlap.a}" / "${overlap.b}"`,
+      };
+    }
   }
 
   return {
     ok: true,
-    data: { readingText, koreanTranslation, luckyItemKo, vocabulary: withPositions },
+    data: {
+      readingText,
+      koreanTranslation,
+      luckyItemKo,
+      detailFortunes: orderedDetails,
+      vocabulary: withPositions,
+    },
   };
 }
 

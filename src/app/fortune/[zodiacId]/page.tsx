@@ -594,11 +594,11 @@ export default function FortuneDetailPage() {
 
   // ─── study 단계: 한국어 세그먼트 데이터가 아직 없는(백필/생성 실패) 운세는
   // 상호작용 없는 준비 중 안내만 보여준다. 프론트에서 임의로 일본어 원문
-  // 런타임 매칭으로 대체하지 않는다 — koreanSegments/luckyItemKoSegments는
-  // 전부 M5가 DB에 저장해 둔 값이어야 한다. ───
-  const { koreanSegments, luckyItemKoSegments, luckyItemKo } = fortune;
+  // 런타임 매칭으로 대체하지 않는다 — koreanSegments/luckyItemKoSegments/
+  // detailFortunes는 전부 M5가 DB에 저장해 둔 값이어야 한다. ───
+  const { koreanSegments, luckyItemKoSegments, luckyItemKo, detailFortunes } = fortune;
 
-  if (koreanSegments === null || luckyItemKoSegments === null || luckyItemKo === null) {
+  if (koreanSegments === null || luckyItemKoSegments === null || luckyItemKo === null || detailFortunes === null) {
     return (
       <div>
         <TopNavigation
@@ -622,6 +622,13 @@ export default function FortuneDetailPage() {
   const progressText = isAllChecked
     ? '일본어 단어 3개를 모두 확인했어요'
     : '일본어 3개를 눌러서 전체 운세를 확인해보세요';
+
+  // 세부 운세(연애/금전/일·학업)는 항상 love/money/work 3개가 있어야 화면에 닿는다
+  // (위의 not-ready 가드에서 이미 detailFortunes !== null을 확인했다).
+  const detailByCategory = new Map(detailFortunes.map((d) => [d.category, d]));
+  const loveDetail = detailByCategory.get('love');
+  const moneyDetail = detailByCategory.get('money');
+  const workDetail = detailByCategory.get('work');
 
   return (
     <div>
@@ -672,6 +679,57 @@ export default function FortuneDetailPage() {
             onWordClick={openWordOverlay}
           />
         </section>
+
+        {/* 세부 운세(연애·금전·일학업) — 공식 오하아사 소스에는 없는 AI 보충 콘텐츠다.
+            공식 운세(위 1, 2)와 시각적으로 구분되도록 별도 배경 카드로 감싼다. */}
+        <div className="rounded-[var(--radius-lg)] bg-[var(--surface-subtle)] p-4">
+          <div className="mb-4 flex items-center gap-1.5 text-caption text-[var(--text-tertiary)]">
+            <Icon name="info" size={14} aria-hidden="true" />
+            <span>공식 운세를 바탕으로 AI가 보충한 콘텐츠예요.</span>
+          </div>
+
+          {loveDetail && (
+            <section aria-label="오늘의 연애·인간관계운" className="mb-6">
+              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+                3. 오늘의 연애·인간관계운
+              </h2>
+              <KoreanSegmentedText
+                segments={loveDetail.koreanSegments}
+                vocabulary={fortune.vocabulary}
+                checkedWordIds={checkedWordIds}
+                onWordClick={openWordOverlay}
+              />
+            </section>
+          )}
+
+          {moneyDetail && (
+            <section aria-label="오늘의 금전운" className="mb-6">
+              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+                4. 오늘의 금전운
+              </h2>
+              <KoreanSegmentedText
+                segments={moneyDetail.koreanSegments}
+                vocabulary={fortune.vocabulary}
+                checkedWordIds={checkedWordIds}
+                onWordClick={openWordOverlay}
+              />
+            </section>
+          )}
+
+          {workDetail && (
+            <section aria-label="오늘의 일·학업운">
+              <h2 className="text-caption text-[var(--text-tertiary)] font-semibold mb-3 tracking-wide">
+                5. 오늘의 일·학업운
+              </h2>
+              <KoreanSegmentedText
+                segments={workDetail.koreanSegments}
+                vocabulary={fortune.vocabulary}
+                checkedWordIds={checkedWordIds}
+                onWordClick={openWordOverlay}
+              />
+            </section>
+          )}
+        </div>
       </div>
 
       {/* 복습 진입 CTA — 3/3을 달성한 순간에만 생성된다(항상 마운트된 채 숨겨두지 않음).

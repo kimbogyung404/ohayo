@@ -1,7 +1,10 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { KoreanSegment } from '@/types/fortune';
 import { generateFortuneStudyData } from './gemini';
-import { validateAiResult, buildSegments, buildKoreanSegments } from './validation';
+import { validateAiResult, buildSegments, buildKoreanSegments, type KoreanSourceKey } from './validation';
+
+const KOREAN_SOURCE_KEYS: readonly KoreanSourceKey[] = ['main', 'luckyItem', 'love', 'money', 'work'];
 
 // M5 생성 로직의 단일 소스. /api/cron/generate(수동 재실행용)와 /api/cron/daily(자동
 // 실행용) 양쪽에서 이 함수 하나만 호출한다. M4가 저장한 original_text/lucky_item/rank는
@@ -55,19 +58,26 @@ async function processFortune(
     return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: validation.reason };
   }
 
-  // 3. deterministic vocabulary id 3개 생성 (원문 내 등장 순서 기준)
+  // 3. deterministic vocabulary id 3개 생성 (원문/세부 운세 내 등장 순서 기준)
   const vocabWithIds = validation.data.vocabulary.map((v, index) => ({
     vocabularyId: `${fortune.zodiac_id}-${dateNoDash}-${String(index + 1).padStart(2, '0')}`,
     surfaceForm: v.surfaceForm,
     reading: v.reading,
     meaning: v.meaning,
     koreanText: v.koreanText,
+    difficulty: v.difficulty,
+    japaneseSourceKey: v.japaneseSourceKey,
     startIndex: v.startIndex,
-    koreanStartIndex: v.koreanStartIndex,
-    luckyItemKoStartIndex: v.luckyItemKoStartIndex,
+    koreanPlacements: v.koreanPlacements,
   }));
 
-  const { segments, reconstructed } = buildSegments(fortune.original_text, vocabWithIds);
+  // 일본어 segments(비표시용, 무결성 확인 전용)는 원문(original)에 실제로 위치한
+  // 단어만 대상으로 한다 — 세부 운세에서 나온 단어는 originalText 기준 위치가 없다.
+  const originalAnchoredVocab = vocabWithIds
+    .filter((v) => v.japaneseSourceKey === 'original')
+    .map((v) => ({ vocabularyId: v.vocabularyId, surfaceForm: v.surfaceForm, startIndex: v.startIndex }));
+
+  const { segments, reconstructed } = buildSegments(fortune.original_text, originalAnchoredVocab);
   if (reconstructed !== fortune.original_text) {
     // 이론상 발생하지 않아야 하지만, 방어적으로 실패 처리한다.
     await supabase
@@ -77,54 +87,39 @@ async function processFortune(
     return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: 'segments reconstruction mismatch' };
   }
 
-  // 3-1. 한국어 세그먼트도 동일하게 결정론적으로 조립하고, 원문(koreanTranslation/
-  // luckyItemKo)과 글자 단위로 완전히 일치하는지 다시 확인한다.
-  const koreanPlacements = vocabWithIds
-    .filter((v) => v.koreanStartIndex !== null)
-    .map((v) => ({ vocabularyId: v.vocabularyId, koreanText: v.koreanText, startIndex: v.koreanStartIndex as number }));
-  const { segments: koreanSegments, reconstructed: koreanReconstructed } = buildKoreanSegments(
-    validation.data.koreanTranslation,
-    koreanPlacements
-  );
-  if (koreanReconstructed !== validation.data.koreanTranslation) {
-    await supabase
-      .from('fortunes')
-      .update({ ai_status: 'failed', ai_error_message: 'koreanSegments reconstruction mismatch' })
-      .eq('id', fortune.id);
-    return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason: 'koreanSegments reconstruction mismatch' };
+  // 3-1. 한국어 세그먼트도 동일하게 결정론적으로 조립하고, 각 출처 텍스트(본문 번역/
+  // 행운 아이템 번역/세부 운세 3종 번역)와 글자 단위로 완전히 일치하는지 다시 확인한다.
+  const koreanSourceTexts: Record<KoreanSourceKey, string> = {
+    main: validation.data.koreanTranslation,
+    luckyItem: validation.data.luckyItemKo,
+    love: validation.data.detailFortunes[0].koreanTranslation,
+    money: validation.data.detailFortunes[1].koreanTranslation,
+    work: validation.data.detailFortunes[2].koreanTranslation,
+  };
+
+  const koreanSegmentsBySource: Partial<Record<KoreanSourceKey, KoreanSegment[]>> = {};
+
+  for (const key of KOREAN_SOURCE_KEYS) {
+    const sourceText = koreanSourceTexts[key];
+    const placements = vocabWithIds
+      .filter((v) => v.koreanPlacements[key] !== undefined)
+      .map((v) => ({
+        vocabularyId: v.vocabularyId,
+        koreanText: v.koreanText,
+        startIndex: v.koreanPlacements[key] as number,
+      }));
+    const { segments: builtSegments, reconstructed: builtReconstructed } = buildKoreanSegments(sourceText, placements);
+    if (builtReconstructed !== sourceText) {
+      const reason = `${key} segments reconstruction mismatch`;
+      await supabase.from('fortunes').update({ ai_status: 'failed', ai_error_message: reason }).eq('id', fortune.id);
+      return { zodiacId: fortune.zodiac_id, rank: fortune.rank, status: 'failed', reason };
+    }
+    koreanSegmentsBySource[key] = builtSegments;
   }
 
-  const luckyItemKoPlacements = vocabWithIds
-    .filter((v) => v.luckyItemKoStartIndex !== null)
-    .map((v) => ({
-      vocabularyId: v.vocabularyId,
-      koreanText: v.koreanText,
-      startIndex: v.luckyItemKoStartIndex as number,
-    }));
-  const { segments: luckyItemKoSegments, reconstructed: luckyItemKoReconstructed } = buildKoreanSegments(
-    validation.data.luckyItemKo,
-    luckyItemKoPlacements
-  );
-  if (luckyItemKoReconstructed !== validation.data.luckyItemKo) {
-    await supabase
-      .from('fortunes')
-      .update({ ai_status: 'failed', ai_error_message: 'luckyItemKoSegments reconstruction mismatch' })
-      .eq('id', fortune.id);
-    return {
-      zodiacId: fortune.zodiac_id,
-      rank: fortune.rank,
-      status: 'failed',
-      reason: 'luckyItemKoSegments reconstruction mismatch',
-    };
-  }
-
-  // 3-2. 핵심 단어 3개가 두 섹션(koreanSegments, luckyItemKoSegments) 중 최소 한 곳에는
-  // 실제로 연결됐는지 최종 확인한다(개별 vocab 검증에서 이미 보장되지만 방어적으로 재확인).
-  const connectedVocabularyIds = new Set([
-    ...koreanPlacements.map((p) => p.vocabularyId),
-    ...luckyItemKoPlacements.map((p) => p.vocabularyId),
-  ]);
-  const unconnected = vocabWithIds.filter((v) => !connectedVocabularyIds.has(v.vocabularyId));
+  // 3-2. 핵심 단어 3개가 5개 한국어 출처 중 최소 한 곳에는 실제로 연결됐는지 최종
+  // 확인한다(개별 vocab 검증에서 이미 보장되지만 방어적으로 재확인).
+  const unconnected = vocabWithIds.filter((v) => Object.keys(v.koreanPlacements).length === 0);
   if (unconnected.length > 0) {
     const reason = `vocabulary not connected to any Korean segment: ${unconnected.map((v) => v.surfaceForm).join(', ')}`;
     await supabase
@@ -145,6 +140,7 @@ async function processFortune(
       surface_form: v.surfaceForm,
       reading: v.reading,
       meaning: v.meaning,
+      difficulty: v.difficulty,
     })),
     { onConflict: 'id' }
   );
@@ -180,15 +176,23 @@ async function processFortune(
   }
 
   // 6. 검증된 경우에만 fortunes를 최종 업데이트한다.
+  const detailFortunesForDb = (['love', 'money', 'work'] as const).map((category, index) => ({
+    category,
+    japaneseText: validation.data.detailFortunes[index].japaneseText,
+    koreanTranslation: validation.data.detailFortunes[index].koreanTranslation,
+    koreanSegments: koreanSegmentsBySource[category]!,
+  }));
+
   const { error: finalUpdateError } = await supabase
     .from('fortunes')
     .update({
       reading_text: validation.data.readingText,
       korean_translation: validation.data.koreanTranslation,
       segments,
-      korean_segments: koreanSegments,
+      korean_segments: koreanSegmentsBySource.main!,
       lucky_item_ko: validation.data.luckyItemKo,
-      lucky_item_ko_segments: luckyItemKoSegments,
+      lucky_item_ko_segments: koreanSegmentsBySource.luckyItem!,
+      detail_fortunes: detailFortunesForDb,
       ai_status: 'success',
       ai_error_message: null,
     })

@@ -1,5 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Fortune, KoreanSegment, Segment, Vocabulary, ZodiacId, ZodiacRankItem } from '@/types/fortune';
+import type {
+  Fortune,
+  FortuneDetailEntry,
+  KoreanSegment,
+  Segment,
+  Vocabulary,
+  VocabularyDifficulty,
+  ZodiacId,
+  ZodiacRankItem,
+} from '@/types/fortune';
 
 // 서버 클라이언트(쿠키 기반)와 브라우저 클라이언트 양쪽에서 모두 쓸 수 있도록
 // SupabaseClient를 인자로 받는다. fortunes/vocabulary는 공개 SELECT RLS라
@@ -20,6 +29,7 @@ interface FortuneRow {
   korean_segments: KoreanSegment[] | null;
   lucky_item_ko: string | null;
   lucky_item_ko_segments: KoreanSegment[] | null;
+  detail_fortunes: FortuneDetailEntry[] | null;
   source_url: string | null;
   ai_status: 'pending' | 'success' | 'failed';
 }
@@ -30,6 +40,7 @@ interface VocabularyRow {
   surface_form: string;
   reading: string;
   meaning: string;
+  difficulty: VocabularyDifficulty | null;
 }
 
 // 12개 별자리가 전부 존재하고 AI 처리(success)까지 완료된 가장 최신 날짜를 찾는다.
@@ -89,7 +100,7 @@ export async function getFortuneByZodiac(
   const { data: fortuneRow, error: fortuneError } = await supabase
     .from('fortunes')
     .select(
-      'id, date, zodiac_id, zodiac_japanese, zodiac_korean, rank, original_text, reading_text, korean_translation, lucky_item, segments, korean_segments, lucky_item_ko, lucky_item_ko_segments, source_url, ai_status'
+      'id, date, zodiac_id, zodiac_japanese, zodiac_korean, rank, original_text, reading_text, korean_translation, lucky_item, segments, korean_segments, lucky_item_ko, lucky_item_ko_segments, detail_fortunes, source_url, ai_status'
     )
     .eq('date', date)
     .eq('zodiac_id', zodiacId)
@@ -101,7 +112,7 @@ export async function getFortuneByZodiac(
 
   const { data: vocabRows, error: vocabError } = await supabase
     .from('vocabulary')
-    .select('id, word, surface_form, reading, meaning')
+    .select('id, word, surface_form, reading, meaning, difficulty')
     .eq('fortune_id', row.id);
 
   if (vocabError) return null;
@@ -112,6 +123,7 @@ export async function getFortuneByZodiac(
     surfaceForm: v.surface_form,
     reading: v.reading,
     meaning: v.meaning,
+    difficulty: v.difficulty,
   }));
 
   return {
@@ -132,6 +144,7 @@ export async function getFortuneByZodiac(
     luckyItemKo: row.lucky_item_ko ?? null,
     luckyItemKoSegments:
       row.lucky_item_ko_segments && row.lucky_item_ko_segments.length > 0 ? row.lucky_item_ko_segments : null,
+    detailFortunes: row.detail_fortunes && row.detail_fortunes.length === 3 ? row.detail_fortunes : null,
     vocabulary,
     sourceUrl: row.source_url ?? '',
     sourceDate: row.date,
