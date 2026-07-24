@@ -54,8 +54,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         className={[
           'inline-flex items-center justify-center gap-2',
-          'font-[var(--font-primary)] cursor-pointer select-none',
-          'transition-colors duration-[var(--transition-fast)]',
+          'font-[var(--font-primary)] cursor-pointer select-none touch-manipulation',
+          'transition-colors duration-[var(--transition-fast)] active:duration-0',
           'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-1',
           'disabled:cursor-not-allowed',
           hierarchyClassName,
