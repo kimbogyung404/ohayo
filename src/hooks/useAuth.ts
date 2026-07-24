@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
-import { identify, resetAnalytics, track } from '@/lib/analytics/mixpanel';
+import { resetAnalytics, syncIdentity, track } from '@/lib/analytics/mixpanel';
 import {
   consumePendingLoginAttempt,
   clearPendingLoginAttempt,
@@ -20,23 +20,27 @@ export function useAuth() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
       setIsLoading(false);
-      // 이미 로그인된 상태로 페이지가 로드된 경우 — identify만 재연결한다.
+      // 이미 로그인된 상태로 페이지가 로드된 경우 — identify만 재연결한다(분석 제외
+      // 대상이면 syncIdentity가 identify 대신 opt-out 처리한다).
       // login_completed는 여기서 보내지 않는다(아래 onAuthStateChange에서만 판단).
-      if (data.user) identify(data.user.id);
+      if (data.user) void syncIdentity(data.user.id);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        identify(session.user.id);
-      }
 
       if (event === 'SIGNED_OUT') {
         resetAnalytics();
         return;
+      }
+
+      // login_completed 판단보다 먼저 identify/opt-out 여부가 확정되어야 한다 — 분석
+      // 제외 대상이 이 세션에서 처음 확인되는 경우, track() 호출 전에 opt-out 처리가
+      // 끝나 있어야 login_completed가 새어나가지 않는다.
+      if (session?.user) {
+        await syncIdentity(session.user.id);
       }
 
       // login_completed는 "이 저장 플로우에서 실제로 로그인을 새로 시작해서 성공한

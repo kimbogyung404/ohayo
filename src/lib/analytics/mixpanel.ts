@@ -74,3 +74,94 @@ export function resetAnalytics(): void {
     console.error('[mixpanel] reset failed', error);
   }
 }
+
+// 이 브라우저가 이미 Mixpanel 공식 opt-out 상태로 저장되어 있는지 동기적으로 확인한다.
+// opt-out 상태는 mixpanel.reset()이 지우는 저장소와 별도로 보관되므로 로그아웃 후에도
+// 유지된다 — 네트워크 호출 없이 즉시 판단 가능하다.
+function isLocallyOptedOut(): boolean {
+  try {
+    return init() && mixpanel.has_opted_out_tracking();
+  } catch (error) {
+    console.error('[mixpanel] has_opted_out_tracking failed', error);
+    return false;
+  }
+}
+
+// 분석 제외 대상 브라우저를 Mixpanel 공식 opt-out 상태로 전환한다. 이후 track/identify와
+// Session Replay 시작 시도는 SDK가 내부적으로 무시하며, 이미 시작된 Session Replay가
+// 있다면 즉시 중단된다.
+export function optOutAnalytics(): void {
+  try {
+    if (!init()) return;
+    mixpanel.opt_out_tracking();
+  } catch (error) {
+    console.error('[mixpanel] opt_out_tracking failed', error);
+  }
+}
+
+// 이전에 제외 대상 계정 로그인으로 opt-out된 브라우저를, 지금 로그인한 계정이 제외
+// 대상이 아님을 서버로 확인한 뒤 공식 opt_in_tracking()으로 복구한다. 특정 브라우저가
+// 영구적으로 막히지 않고, "현재 로그인한 계정" 기준으로 상태가 갱신되도록 한다.
+// Session Replay는 opt_in_tracking()만으로는 이번 페이지 로드에서 자동 재개되지 않으므로
+// (다음 init()부터 정상 시작) 즉시 재개되도록 명시적으로 시작한다.
+function optInAnalytics(): void {
+  try {
+    if (!init()) return;
+    mixpanel.opt_in_tracking();
+    mixpanel.start_session_recording();
+  } catch (error) {
+    console.error('[mixpanel] opt_in_tracking failed', error);
+  }
+}
+
+let lastCheckedUserId: string | null = null;
+let lastCheckedExcluded = false;
+
+// 로그인된 사용자를 identify하기 전에 서버(/api/analytics/exclusion-status)로 분석 제외
+// 대상 여부를 매번 확인한다 — 이 브라우저가 이전에 opt-out되었더라도 재확인을 생략하지
+// 않는다(생략하면 이후 일반 계정이 로그인해도 영구히 차단된다). 같은 userId에 대한 중복
+// 호출(예: getUser().then과 onAuthStateChange가 같은 세션에서 동시에 실행되는 경우)만
+// 네트워크 호출 없이 캐시된 결과를 재사용한다.
+//
+// 제외 대상으로 확인되면 identify()를 호출하지 않고 opt-out 처리한다. 제외 대상이
+// 아니면서 이 브라우저가 이전에 opt-out 상태였다면(과거 제외 계정 로그인 이력)
+// opt_in_tracking()으로 복구한 뒤 identify를 진행한다.
+//
+// 확인 요청 자체가 실패하면(오프라인 등): 이미 opt-out 상태인 브라우저는 안전한 쪽으로
+// opt-out을 유지하고(오검증으로 제외 대상을 되살리지 않는다), 그 외에는 로그인 등 핵심
+// 기능을 막지 않기 위해 일반 사용자로 간주해 identify를 진행한다.
+export async function syncIdentity(userId: string): Promise<void> {
+  if (lastCheckedUserId === userId) {
+    if (lastCheckedExcluded) {
+      optOutAnalytics();
+    } else {
+      identify(userId);
+    }
+    return;
+  }
+
+  let excluded: boolean;
+  try {
+    const res = await fetch('/api/analytics/exclusion-status', { cache: 'no-store' });
+    const data: { excluded?: boolean } = res.ok ? await res.json() : {};
+    excluded = !!data.excluded;
+  } catch (error) {
+    console.error('[mixpanel] exclusion status check failed', error);
+    if (isLocallyOptedOut()) return;
+    identify(userId);
+    return;
+  }
+
+  lastCheckedUserId = userId;
+  lastCheckedExcluded = excluded;
+
+  if (excluded) {
+    optOutAnalytics();
+    return;
+  }
+
+  if (isLocallyOptedOut()) {
+    optInAnalytics();
+  }
+  identify(userId);
+}
