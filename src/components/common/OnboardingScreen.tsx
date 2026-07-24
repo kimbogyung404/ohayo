@@ -87,10 +87,10 @@ export default function OnboardingScreen() {
     >
       <div className="onboarding-content-pad flex flex-1 flex-col overflow-y-auto">
         <div
-          className="shrink-0 px-[var(--page-padding-x)] text-right"
+          className="shrink-0 px-[var(--page-padding-x)] text-left"
           style={{ paddingTop: 'calc(env(safe-area-inset-top) + 32px)' }}
         >
-          <p className="text-h1 text-[var(--text-brand)]">
+          <p className="text-h1 text-[var(--text-primary)]">
             오늘의 운세로
             <br />
             일본어 단어를 배워보세요
