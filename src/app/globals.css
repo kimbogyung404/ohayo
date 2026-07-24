@@ -207,6 +207,13 @@ body {
   padding-bottom: calc(180px + env(safe-area-inset-bottom));
 }
 
+/* OnboardingScreen 전용: StickyActionBar에 Tooltip 없이 버튼 한 개만 있을 때의 실제
+   높이(large 버튼 52px + 상하 패딩 12px/16px ≈ 80px)에 여유를 더한 값. 위 사이즈보다
+   작게 잡아 짧은 화면에서 별자리 애니메이션 영역을 불필요하게 줄이지 않는다. */
+.onboarding-content-pad {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
 /* ─────────────────────────────────────────
    Typography Utilities
 ───────────────────────────────────────── */
@@ -324,6 +331,52 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in {
+    animation: none;
+  }
+}
+
+/* ─────────────────────────────────────────
+   Onboarding Marquee — 별자리 이미지 가로 트랙.
+   트랙에는 전체 목록이 두 벌 이어붙어 있고(OnboardingScreen.tsx의 ZODIAC_TRACK),
+   -50% 지점에서 시작해 0%로 끝난다(왼쪽에서 오른쪽으로 이동). 두 벌이 완전히
+   동일해 -50% 지점의 시각적 상태와 0% 지점의 시각적 상태가 픽셀 단위로 같으므로,
+   0%에서 -50%로 되돌아가는 반복 지점이 튀지 않는다(linear로 가감속 없이 일정한
+   속도 유지).
+───────────────────────────────────────── */
+@keyframes onboarding-marquee-scroll {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.onboarding-marquee-track {
+  width: max-content;
+  animation: onboarding-marquee-scroll 42s linear infinite;
+}
+
+/* 이미지별 바운싱 진폭/주기/지연은 OnboardingScreen.tsx에서 CSS 변수로 전달한다. */
+@keyframes onboarding-marquee-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(calc(var(--bounce-amplitude, 6px) * -1));
+  }
+}
+.onboarding-marquee-item {
+  animation-name: onboarding-marquee-bounce;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-duration: var(--bounce-duration, 4s);
+  animation-delay: var(--bounce-delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-marquee-track,
+  .onboarding-marquee-item {
     animation: none;
   }
 }
