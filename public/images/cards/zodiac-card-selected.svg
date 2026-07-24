@@ -1,0 +1,51 @@
+<svg width="140" height="206" viewBox="0 0 140 206" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Taro_card1">
+<g clip-path="url(#clip0_zodiac_card_selected)">
+<rect width="140" height="206" rx="16" fill="url(#paint0_linear_zodiac_card_selected)"/>
+<circle id="Ellipse 20" cx="70.5" cy="158.5" r="69.5" fill="url(#paint1_linear_zodiac_card_selected)"/>
+<circle id="Ellipse 21" cx="70.5" cy="161.5" r="56.5" fill="url(#paint2_linear_zodiac_card_selected)"/>
+<path id="Exclude" d="M124 0C132.837 0 140 7.16344 140 16V190C140 198.837 132.837 206 124 206H16C7.16344 206 8.05374e-08 198.837 0 190V16C1.73961e-06 7.16345 7.16345 4.83193e-08 16 0H124ZM26.6846 14C25.9625 24.9309 23.4138 28.6014 13.0674 30.1104L13.2012 176.89C23.1392 176.641 25.6745 180.644 26.6846 193H112.584C113.022 180.796 116.263 177.111 127.067 176.89V30.1104C115.827 28.7584 113.372 25.1278 113.083 14H26.6846Z" fill="#353A8E"/>
+<g id="Group 8">
+<g id="Group 7">
+<path id="Vector 4" d="M55.75 13.9502H112.652C113.214 13.9502 113.659 14.4338 113.642 14.9948C113.571 17.2944 113.725 22.8577 116.55 26.2283C119.302 29.5121 123.798 29.6782 125.879 29.5552C126.467 29.5205 127 29.9794 127 30.5686V84.2104" stroke="#CDBEFF" stroke-width="0.95"/>
+<path id="Vector 5" d="M84.25 13.9502H27.3476C26.7863 13.9502 26.3411 14.4338 26.3583 14.9948C26.4287 17.2944 26.2748 22.8577 23.45 26.2283C20.6979 29.5121 16.2021 29.6782 14.1215 29.5552C13.5333 29.5205 13 29.9794 13 30.5686V84.2104" stroke="#CDBEFF" stroke-width="0.95"/>
+<path id="Vector 7" d="M55.75 193L112.652 193C113.214 193 113.659 192.516 113.642 191.955C113.571 189.656 113.725 184.092 116.55 180.722C119.302 177.438 123.798 177.272 125.879 177.395C126.467 177.43 127 176.971 127 176.382L127 73.4443" stroke="#CDBEFF" stroke-width="0.95"/>
+<path id="Vector 6" d="M84.25 193L27.3477 193C26.7864 193 26.3411 192.516 26.3583 191.955C26.4288 189.656 26.2749 184.092 23.45 180.722C20.698 177.438 16.2021 177.272 14.1215 177.395C13.5333 177.43 13.0001 176.971 13.0001 176.382L13 76.844" stroke="#CDBEFF" stroke-width="0.95"/>
+</g>
+<path id="Vector" d="M134 16.5C130.091 17.9309 128.932 19.0909 127.501 23C126.068 19.0924 124.909 17.9309 121 16.5C124.909 15.0691 126.068 13.9091 127.499 10C128.93 13.9091 130.09 15.0691 133.999 16.5H134Z" fill="#CDBEFF"/>
+<path id="Vector_2" d="M134 189.5C130.091 190.931 128.932 192.091 127.501 196C126.068 192.092 124.909 190.931 121 189.5C124.909 188.069 126.068 186.909 127.499 183C128.93 186.909 130.09 188.069 133.999 189.5H134Z" fill="#CDBEFF"/>
+<path id="Vector_3" d="M19 16.5C15.0914 17.9309 13.9315 19.0909 12.5007 23C11.0685 19.0924 9.90864 17.9309 6 16.5C9.90864 15.0691 11.0685 13.9091 12.4993 10C13.93 13.9091 15.0899 15.0691 18.9985 16.5H19Z" fill="#CDBEFF"/>
+<path id="Vector_4" d="M19 189.5C15.0914 190.931 13.9315 192.091 12.5007 196C11.0685 192.092 9.90864 190.931 6 189.5C9.90864 188.069 11.0685 186.909 12.4993 183C13.93 186.909 15.0899 188.069 18.9985 189.5H19Z" fill="#CDBEFF"/>
+<path id="Vector 9" d="M33 186H108" stroke="#CDBEFF" stroke-opacity="0.5" stroke-linecap="round"/>
+<path id="Vector 10" d="M33 20H108" stroke="#CDBEFF" stroke-opacity="0.5" stroke-linecap="round"/>
+<path id="Vector 11" d="M121 33L121 173" stroke="#CDBEFF" stroke-opacity="0.5" stroke-linecap="round"/>
+<path id="Vector 12" d="M19 33L19 173" stroke="#CDBEFF" stroke-opacity="0.5" stroke-linecap="round"/>
+<g id="Group 9">
+<circle id="Ellipse 16" cx="127" cy="103" r="9" fill="#30347F"/>
+<circle id="Ellipse 18" cx="127" cy="103" r="7" fill="#CDBEFF" fill-opacity="0.5"/>
+<circle id="Ellipse 17" cx="13" cy="103" r="9" fill="#30347F"/>
+<circle id="Ellipse 19" cx="7" cy="7" r="7" transform="matrix(-1 0 0 1 20 96)" fill="#CDBEFF" fill-opacity="0.5"/>
+<path id="Vector_5" d="M132 103C128.993 104.101 128.101 104.993 127.001 108C125.899 104.994 125.007 104.101 122 103C125.007 101.899 125.899 101.007 126.999 98C128.1 101.007 128.992 101.899 131.999 103H132Z" fill="#2B2E71"/>
+<path id="Vector_6" d="M18 103C14.9934 104.101 14.1012 104.993 13.0006 108C11.8988 104.994 11.0066 104.101 8 103C11.0066 101.899 11.8988 101.007 12.9994 98C14.1 101.007 14.9922 101.899 17.9989 103H18Z" fill="#2B2E71"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_zodiac_card_selected" x1="69.8152" y1="59.3559" x2="69.8152" y2="271.757" gradientUnits="userSpaceOnUse">
+<stop stop-color="#5960EC"/>
+<stop offset="1" stop-color="#333786"/>
+</linearGradient>
+<linearGradient id="paint1_linear_zodiac_card_selected" x1="70.5" y1="228" x2="70.5" y2="66.2434" gradientUnits="userSpaceOnUse">
+<stop stop-color="#2B2F7B"/>
+<stop offset="1" stop-color="#4E55E1"/>
+</linearGradient>
+<linearGradient id="paint2_linear_zodiac_card_selected" x1="70.5" y1="218" x2="70.5" y2="86.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="#2B2F7B"/>
+<stop offset="1" stop-color="#4E55E1"/>
+</linearGradient>
+<clipPath id="clip0_zodiac_card_selected">
+<rect width="140" height="206" rx="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>
