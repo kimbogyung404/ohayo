@@ -12,6 +12,7 @@ import LoginPromptSheet from '@/components/auth/LoginPromptSheet';
 import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
 import TopNavigation from '@/components/ui/TopNavigation';
+import ZodiacAsset from '@/components/ui/ZodiacAsset';
 import VocabCard from '@/components/ui/VocabCard';
 import Button from '@/components/ui/Button';
 import StickyActionBar from '@/components/ui/StickyActionBar';
@@ -634,9 +635,17 @@ export default function FortuneDetailPage() {
         onBack={() => router.push('/')}
       />
 
+      {/* 헤더 아래 16px → 별자리 이미지(가로 중앙 정렬) → 16px → 본문. 아래 콘텐츠
+          div는 이 간격과 겹치지 않도록 pt 없이 pb-6만 쓴다(원래는 py-6이었음). */}
+      <div className="flex justify-center pt-4 pb-4">
+        <div className="relative h-24 w-24">
+          <ZodiacAsset zodiac={zodiacId} alt="" />
+        </div>
+      </div>
+
       <div
         className={[
-          'px-[var(--page-padding-x)] py-6',
+          'px-[var(--page-padding-x)] pb-6',
           isAllChecked ? 'page-content-with-sticky-cta' : '',
         ]
           .filter(Boolean)
@@ -653,7 +662,7 @@ export default function FortuneDetailPage() {
         {/* 오늘의 운세 — 한국어 본문, 핵심 단어 3개만 확인 전 일본어 */}
         <section aria-label="오늘의 운세" className="mb-6">
           <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
-            🔮 오늘의 운세
+            🔮 오늘의 총 운세
           </h2>
           <KoreanSegmentedText
             segments={koreanSegments}
