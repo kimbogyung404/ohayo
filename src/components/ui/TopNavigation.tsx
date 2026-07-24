@@ -20,7 +20,7 @@ export default function TopNavigation(props: TopNavigationProps) {
       <div className="h-16 flex items-center">
         {variant === 'guest' && (
           <div className="flex w-full items-center justify-between">
-            <Logo className="h-[22px] w-auto" />
+            <Logo className="w-[110px] h-auto" />
             <Button hierarchy="primary" size="small" onClick={props.onLoginClick}>
               로그인
             </Button>
@@ -29,7 +29,7 @@ export default function TopNavigation(props: TopNavigationProps) {
 
         {variant === 'authenticated' && (
           <div className="flex w-full items-center justify-between">
-            <Logo className="h-[22px] w-auto" />
+            <Logo className="w-[110px] h-auto" />
             <button type="button" onClick={props.onProfileClick} aria-label="프로필 열기">
               <Icon name="user" size={32} />
             </button>

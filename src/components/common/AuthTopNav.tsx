@@ -19,7 +19,7 @@ export default function AuthTopNav() {
     return (
       <header className="w-full px-[var(--page-padding-x)] bg-[var(--surface-brand)]">
         <div className="h-16 flex items-center">
-          <Logo className="h-[22px] w-auto" />
+          <Logo className="w-[110px] h-auto" />
         </div>
       </header>
     );

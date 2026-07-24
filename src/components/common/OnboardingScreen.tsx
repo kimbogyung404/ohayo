@@ -83,7 +83,7 @@ export default function OnboardingScreen() {
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-[var(--page-padding-x)] py-10 text-center">
-          <Logo className="h-5 w-auto" />
+          <Logo className="w-[100px] h-auto" />
           <p className="text-h1 text-[var(--text-primary)]">
             오늘의 운세로
             <br />
