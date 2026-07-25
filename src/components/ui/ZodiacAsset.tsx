@@ -58,7 +58,13 @@ export default function ZodiacAsset({ zodiac, alt, className = '' }: ZodiacAsset
       src={`/images/zodiac/${zodiac}.png`}
       alt={alt}
       fill
-      className={['object-contain', className].filter(Boolean).join(' ')}
+      draggable={false}
+      className={[
+        'pointer-events-none select-none [-webkit-user-drag:none] object-contain',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={transforms ? { transform: transforms } : undefined}
     />
   );
