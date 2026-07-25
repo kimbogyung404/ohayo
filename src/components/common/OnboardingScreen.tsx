@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import StickyActionBar from '@/components/ui/StickyActionBar';
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { ZODIACS } from '@/lib/zodiac';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // 스플래시(z-index 9999, src/app/globals.css .splash-screen)보다 낮고 다른 모든
 // 오버레이(바텀시트/툴팁/카드 오버레이 등 z-50 이하)보다는 높은 값을 써서, 스플래시가
@@ -55,15 +56,9 @@ export default function OnboardingScreen() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // 표시 중에만 배경 스크롤을 잠근다(스플래시와 동일한 방식).
-  useEffect(() => {
-    if (!show) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [show]);
+  // 표시 중에만 배경 스크롤을 잠근다. 다른 오버레이(스플래시 등)와 잠금 요청이
+  // 겹쳐도 안전하도록 공통 useBodyScrollLock(중첩 카운트 기반)을 쓴다.
+  useBodyScrollLock(show);
 
   const handleStart = () => {
     try {

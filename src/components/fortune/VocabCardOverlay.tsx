@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface VocabCardOverlayProps {
   isOpen: boolean;
@@ -23,6 +24,10 @@ export default function VocabCardOverlay({ isOpen, onClose, children }: VocabCar
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
 
+  // 다른 오버레이와 잠금 요청이 겹쳐도 안전하도록 공통 useBodyScrollLock(중첩
+  // 카운트 기반)을 쓴다.
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -31,9 +36,6 @@ export default function VocabCardOverlay({ isOpen, onClose, children }: VocabCar
     };
     document.addEventListener('keydown', handleKeyDown);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     const focusable = sheetRef.current?.querySelector<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
@@ -41,7 +43,6 @@ export default function VocabCardOverlay({ isOpen, onClose, children }: VocabCar
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, onClose]);
 

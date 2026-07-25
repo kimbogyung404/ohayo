@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useEffect, useRef } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -27,6 +28,10 @@ export default function BottomSheet({
     }
   };
 
+  // 다른 오버레이와 잠금 요청이 겹쳐도 안전하도록 공통 useBodyScrollLock(중첩
+  // 카운트 기반)을 쓴다.
+  useBodyScrollLock(isOpen);
+
   // ESC 키로 닫기
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -34,11 +39,9 @@ export default function BottomSheet({
     };
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
     };
   }, [isOpen, onClose]);
 

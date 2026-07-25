@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Logo from '@/components/ui/Logo';
+import { acquireBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const HOLD_MS = 1200;
 const FADE_MS = 280;
@@ -39,11 +40,9 @@ export default function SplashScreen() {
   useEffect(() => {
     if (phase === 'done') return;
     if (document.documentElement.dataset.splashSeen === 'true') return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
+    // 다른 오버레이(온보딩 등)와 잠금 요청이 겹쳐도 안전하도록 공통
+    // acquireBodyScrollLock(중첩 카운트 기반)을 쓴다.
+    return acquireBodyScrollLock();
   }, [phase]);
 
   if (phase === 'done') return null;
