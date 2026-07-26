@@ -362,8 +362,8 @@ export default function VocabCard(props: VocabCardProps) {
   return (
     <div
       className={[
-        'relative w-full min-h-[132px] rounded-[var(--radius-lg)] bg-[var(--color-white)] pl-5 pr-3 py-5',
-        selected ? 'border border-[var(--border-brand)]' : 'border-[1.5px] border-[var(--border-default)]',
+        'relative w-full min-h-[132px] rounded-[var(--radius-lg)] border-[1.5px] bg-[var(--color-white)] p-5',
+        selected ? 'border-[var(--border-brand)]' : 'border-[var(--border-default)]',
         rootClassName,
       ]
         .filter(Boolean)
@@ -371,7 +371,8 @@ export default function VocabCard(props: VocabCardProps) {
     >
       {/* 공용 정보 면(VocabCardContent)을 감싸는 선택 영역. div+role="button"인 이유는
           VocabCardContent 내부에 이미 실제 <button>(발음 듣기)이 있어 <button> 중첩을
-          피해야 하기 때문이다(flip 뒷면과 동일한 이유). */}
+          피해야 하기 때문이다(flip 뒷면과 동일한 이유). 체크 아이콘은 콘텐츠 위에
+          겹치지 않도록 별도의 줄(우측 정렬)로 먼저 배치한다. */}
       <div
         role="button"
         tabIndex={0}
@@ -383,8 +384,14 @@ export default function VocabCard(props: VocabCardProps) {
           }
         }}
         aria-pressed={selected}
-        className="relative w-full cursor-pointer pr-6"
+        className="flex w-full cursor-pointer flex-col items-end"
       >
+        <Icon
+          name="check"
+          size={24}
+          aria-hidden="true"
+          className={selected ? 'text-[var(--border-brand)]' : 'text-[var(--border-strong)]'}
+        />
         <VocabCardContent
           word={word}
           reading={reading}
@@ -392,15 +399,6 @@ export default function VocabCard(props: VocabCardProps) {
           partOfSpeech={partOfSpeech}
           onPlayAudio={onPlayAudio}
           stopAudioPropagation
-        />
-        <Icon
-          name="check"
-          size={24}
-          aria-hidden="true"
-          className={[
-            'absolute right-0 top-0',
-            selected ? 'text-[var(--border-brand)]' : 'text-[var(--border-strong)]',
-          ].join(' ')}
         />
       </div>
     </div>

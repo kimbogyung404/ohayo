@@ -535,9 +535,9 @@ export default function FortuneDetailPage() {
         <TopNavigation variant="detail" title="단어 복습하기" onBack={() => setStep('study')} />
 
         <div className="page-content-with-sticky-cta px-[var(--page-padding-x)] py-6">
-          <p className="text-b1-semibold text-[var(--text-brand)]">오늘의 단어를 복습해보세요</p>
+          <p className="text-h2 text-[var(--text-primary)]">오늘 배운 단어를 복습해보세요</p>
           <p className="text-b2-regular text-[var(--text-secondary)] mt-1 mb-6">
-            방금 공부한 단어들을 단어장에 저장할까요?
+            기억해두고 싶은 단어를 골라 단어장에 저장해보세요
           </p>
 
           <div className="space-y-4">
@@ -566,12 +566,12 @@ export default function FortuneDetailPage() {
 
         <StickyActionBar>
           <div className="flex w-full gap-3">
-            <Button hierarchy="secondary" size="medium" className="shrink-0" onClick={() => setStep('study')}>
+            <Button hierarchy="secondary" size="xlarge" className="shrink-0" onClick={() => setStep('study')}>
               종료하기
             </Button>
             <Button
               hierarchy="primary"
-              size="medium"
+              size="xlarge"
               fullWidth
               disabled={selectedWordIds.size === 0 || isSaving}
               onClick={handleSaveSelected}

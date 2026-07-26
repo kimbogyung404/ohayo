@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 type ButtonHierarchy = 'primary' | 'secondary';
 type ButtonState = 'default' | 'hover' | 'pressed' | 'disabled';
-type ButtonSize = 'large' | 'medium' | 'small';
+type ButtonSize = 'xlarge' | 'large' | 'medium' | 'small';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   hierarchy?: ButtonHierarchy;
@@ -22,6 +22,9 @@ const hierarchyStyles: Record<ButtonHierarchy, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
+  // 단어 복습하기 하단 액션 바(종료하기/N개 저장하기)처럼 화면 최하단에 고정되는
+  // 큰 CTA 전용 — 기존 large/medium보다 높이가 크고, large와 동일한 semibold를 쓴다.
+  xlarge: 'h-[var(--button-height-xlarge)] text-b1-semibold px-5 rounded-[var(--radius-md)]',
   large: 'h-[var(--button-height-large)] text-b1-semibold px-6 rounded-[var(--radius-md)]',
   medium: 'h-[var(--button-height-medium)] text-b1-medium px-5 rounded-[var(--radius-md)]',
   small: 'text-b2-medium p-[10px] rounded-[var(--radius-md)]',

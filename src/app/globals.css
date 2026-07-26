@@ -83,6 +83,7 @@
   --radius-full: 9999px;
 
   /* ── Component ── */
+  --button-height-xlarge: 60px;
   --button-height-large: 52px;
   --button-height-medium: 48px;
   --input-height: 48px;
