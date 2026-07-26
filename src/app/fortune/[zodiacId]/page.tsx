@@ -12,6 +12,7 @@ import LoginPromptSheet from '@/components/auth/LoginPromptSheet';
 import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
 import TopNavigation from '@/components/ui/TopNavigation';
+import Tooltip from '@/components/ui/Tooltip';
 import ZodiacAsset from '@/components/ui/ZodiacAsset';
 import VocabCard from '@/components/ui/VocabCard';
 import Button from '@/components/ui/Button';
@@ -618,7 +619,12 @@ export default function FortuneDetailPage() {
   // 마지막 단어와 카운트 사이는 줄바꿈 시 (N/3)만 혼자 남지 않도록 nbsp로 묶는다.
   const progressText = isAllChecked
     ? '일본어 단어 3개를 모두 확인했어요'
-    : '일본어 3개를 눌러서 전체 운세를 확인해보세요';
+    : '빈칸의 일본어 3개를 눌러 운세를 확인하세요';
+
+  // 별자리 이미지 위 안내 툴팁 — 이전에는 본문 첫 하이라이트 위에 인라인으로 떴지만,
+  // 이제는 화면 상단 이미지 위에 고정으로 뜬다. 사라지는 시점은 기존과 동일하게
+  // "본문에 가장 먼저 등장하는 핵심 단어(=fortune.vocabulary[0])를 확인했는가"로 판단한다.
+  const firstVocabConfirmed = fortune.vocabulary.length > 0 && checkedWordIds.has(fortune.vocabulary[0].id);
 
   // 세부 운세(연애/금전/일·학업)는 항상 love/money/work 3개가 있어야 화면에 닿는다
   // (위의 not-ready 가드에서 이미 detailFortunes !== null을 확인했다).
@@ -628,17 +634,23 @@ export default function FortuneDetailPage() {
   const workDetail = detailByCategory.get('work');
 
   return (
-    <div>
+    <div className="bg-[var(--surface-brand)]">
       <TopNavigation
         variant="detail"
         title={`${fortune.rank}위 ${fortune.zodiacKorean}`}
         onBack={() => router.push('/')}
+        background="brand"
       />
 
-      {/* 헤더 아래 16px → 별자리 이미지(가로 중앙 정렬) → 16px → 본문. 아래 콘텐츠
-          div는 이 간격과 겹치지 않도록 pt 없이 pb-6만 쓴다(원래는 py-6이었음). */}
-      <div className="flex justify-center pt-4 pb-4">
-        <div className="relative h-24 w-24">
+      {/* 헤더 아래 → (미확인 시) 안내 툴팁 → 별자리 이미지(가로 중앙 정렬) → 본문. 아래
+          콘텐츠 div는 이 간격과 겹치지 않도록 pt 없이 pb-6만 쓴다. */}
+      <div className="flex flex-col items-center pt-4 pb-4">
+        {!firstVocabConfirmed && (
+          <div className="mb-2">
+            <Tooltip>일본어를 눌러봐!</Tooltip>
+          </div>
+        )}
+        <div className="relative h-[200px] w-[200px]">
           <ZodiacAsset zodiac={zodiacId} alt="" />
         </div>
       </div>
@@ -651,17 +663,18 @@ export default function FortuneDetailPage() {
           .filter(Boolean)
           .join(' ')}
       >
-        <p className="text-b1-medium text-[var(--text-primary)] mb-6">
+        <p className="text-h2 text-[var(--text-primary)] mb-6">
           {progressText}
           {' '}
-          <span className="whitespace-nowrap text-[var(--text-brand)] font-semibold">
+          <span className="whitespace-nowrap text-[var(--text-brand)]">
             ({checkedCount}/3)
           </span>
         </p>
 
         {/* 오늘의 운세 — 한국어 본문, 핵심 단어 3개만 확인 전 일본어 */}
-        <section aria-label="오늘의 운세" className="mb-6">
-          <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+        <div className="flex w-full flex-col gap-6 rounded-[var(--radius-lg)] bg-[var(--color-white)] p-5">
+        <section aria-label="오늘의 운세">
+          <h2 className="text-b2-medium text-[var(--text-secondary)] mb-1">
             🔮 오늘의 총 운세
           </h2>
           <KoreanSegmentedText
@@ -669,13 +682,12 @@ export default function FortuneDetailPage() {
             vocabulary={fortune.vocabulary}
             checkedWordIds={checkedWordIds}
             onWordClick={openWordOverlay}
-            showFirstVocabHint
           />
         </section>
 
         {/* 행운의 장소와 아이템 — 동일한 방식(DB에 저장된 한국어 세그먼트) */}
-        <section aria-label="행운의 장소와 아이템" className="mb-6">
-          <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+        <section aria-label="행운의 장소와 아이템">
+          <h2 className="text-b2-medium text-[var(--text-secondary)] mb-1">
             🍀 행운의 장소와 아이템
           </h2>
           <KoreanSegmentedText
@@ -688,9 +700,11 @@ export default function FortuneDetailPage() {
 
         {/* 세부 운세(연애·금전·일학업) — 공식 오하아사 소스에는 없는 AI 보충 콘텐츠지만,
             공식 운세(위 1, 2)와 같은 섹션 형식으로 자연스럽게 이어서 보여준다. */}
+        <div className="border-t border-[var(--border-default)]" />
+
         {loveDetail && (
-          <section aria-label="오늘의 연애·인간관계운" className="mb-6">
-            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+          <section aria-label="오늘의 연애·인간관계운">
+            <h2 className="text-b2-medium text-[var(--text-secondary)] mb-1">
               💖 오늘의 연애·인간관계운
             </h2>
             <KoreanSegmentedText
@@ -703,8 +717,8 @@ export default function FortuneDetailPage() {
         )}
 
         {moneyDetail && (
-          <section aria-label="오늘의 금전운" className="mb-6">
-            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+          <section aria-label="오늘의 금전운">
+            <h2 className="text-b2-medium text-[var(--text-secondary)] mb-1">
               💰 오늘의 금전운
             </h2>
             <KoreanSegmentedText
@@ -718,7 +732,7 @@ export default function FortuneDetailPage() {
 
         {workDetail && (
           <section aria-label="오늘의 일·학업운">
-            <h2 className="text-caption text-[var(--text-secondary)] font-semibold mb-3 tracking-wide">
+            <h2 className="text-b2-medium text-[var(--text-secondary)] mb-1">
               💼 오늘의 일·학업운
             </h2>
             <KoreanSegmentedText
@@ -729,6 +743,7 @@ export default function FortuneDetailPage() {
             />
           </section>
         )}
+        </div>
       </div>
 
       {/* 복습 진입 CTA — 3/3을 달성한 순간에만 생성된다(항상 마운트된 채 숨겨두지 않음).

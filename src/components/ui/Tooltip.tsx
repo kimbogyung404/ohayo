@@ -13,7 +13,7 @@ export default function Tooltip({ children, className = '', ...props }: TooltipP
       style={{ filter: 'var(--drop-shadow-300)' }}
       {...props}
     >
-      <div className="max-w-full rounded-[var(--radius-sm)] bg-[var(--gray-700)] p-3 text-b2-medium whitespace-normal break-words text-[var(--text-inverse)]">
+      <div className="max-w-full rounded-[var(--radius-xl)] bg-[var(--gray-700)] p-3 text-b2-medium whitespace-normal break-words text-[var(--text-inverse)]">
         {children}
       </div>
       <div

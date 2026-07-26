@@ -8,12 +8,25 @@ import Logo from './Logo';
 type TopNavigationProps =
   | { variant: 'guest'; onLoginClick?: MouseEventHandler<HTMLButtonElement>; className?: string }
   | { variant: 'authenticated'; onProfileClick?: MouseEventHandler<HTMLButtonElement>; className?: string }
-  | { variant: 'detail'; title: string; onBack?: MouseEventHandler<HTMLButtonElement>; className?: string };
+  | {
+      variant: 'detail';
+      title: string;
+      onBack?: MouseEventHandler<HTMLButtonElement>;
+      className?: string;
+      // 상세 화면 대부분은 흰 배경(기본값)이지만, 별자리 상세(study) 화면처럼 헤더가
+      // 페이지의 브랜드 배경과 이어져 보여야 하는 경우에만 'brand'를 넘긴다.
+      background?: 'default' | 'brand';
+    };
 
 export default function TopNavigation(props: TopNavigationProps) {
   const { variant, className = '' } = props;
 
-  const background = variant === 'detail' ? 'bg-[var(--surface-default)]' : 'bg-[var(--surface-brand)]';
+  const background =
+    variant === 'detail'
+      ? props.background === 'brand'
+        ? 'bg-[var(--surface-brand)]'
+        : 'bg-[var(--surface-default)]'
+      : 'bg-[var(--surface-brand)]';
 
   return (
     <header className={['w-full px-[var(--page-padding-x)]', background, className].filter(Boolean).join(' ')}>
