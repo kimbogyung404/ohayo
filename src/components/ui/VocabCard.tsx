@@ -81,7 +81,7 @@ function PlayAudioButton({
       }}
       aria-label="발음 듣기"
       tabIndex={tabIndex}
-      className="mt-1 flex shrink-0 items-center gap-1 self-end"
+      className="flex shrink-0 items-center gap-1 self-end rounded-[var(--radius-sm)] bg-[var(--surface-brand)] px-2 py-1"
     >
       <Icon name="volume" size={24} className="text-[var(--brand-primary)]" />
       <span className="text-caption text-[var(--text-brand)]">발음 듣기</span>
@@ -120,7 +120,7 @@ function VocabCardContent({
     <div className="flex w-full flex-col items-center gap-3">
       <div className="flex w-full flex-col items-center gap-1">
         {reading && (
-          <p className="text-b2-medium w-full text-center text-[var(--text-tertiary)]" lang="ja">
+          <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]" lang="ja">
             {reading}
           </p>
         )}
@@ -160,7 +160,7 @@ function KnowledgeResponseButtons({
             aria-pressed={active}
             onClick={() => onRespond(option.value)}
             className={[
-              'flex-1 rounded-[var(--radius-md)] border-[1.5px] px-4 py-3 text-b2-medium',
+              'flex h-[60px] flex-1 items-center justify-center rounded-[var(--radius-md)] border-[1.5px] px-4 py-3 text-b2-medium',
               active
                 ? 'border-[var(--border-brand)] bg-[var(--surface-brand)] text-[var(--text-brand)]'
                 : 'border-[var(--border-default)] bg-[var(--color-white)] text-[var(--text-secondary)]',
