@@ -37,7 +37,15 @@ export default function RootLayout({
             hydration을 기다리지 않고 첫 페인트 전에 실행되어야 하므로 next/script가
             아닌 순수 <script> 태그를 쓴다(src/lib/splash.ts 참고). */}
         <script dangerouslySetInnerHTML={{ __html: SPLASH_INIT_SCRIPT }} />
-        {/* Pretendard JP — CDN (M1 임시. 프로덕션에서는 next/font/local로 교체 권장) */}
+        {/* Pretendard — CDN (M1 임시. 프로덕션에서는 next/font/local로 교체 권장).
+            한국어/영문/숫자/일반 UI 라벨의 기본 폰트(--font-primary). */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css"
+          crossOrigin="anonymous"
+        />
+        {/* Pretendard JP — 일본어 원문/단어/예문 전용(--font-jp). [lang="ja"] 요소에만
+            globals.css에서 적용된다(src/app/globals.css 참고). */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-jp-dynamic-subset.min.css"

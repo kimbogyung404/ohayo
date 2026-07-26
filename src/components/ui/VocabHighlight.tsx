@@ -44,7 +44,7 @@ export default function VocabHighlight({
         className={[
           'inline-flex items-center justify-center p-[10px]',
           'rounded-[var(--radius-md)] border-0 appearance-none',
-          'font-[var(--font-primary)] cursor-pointer',
+          'cursor-pointer',
           'text-b1-medium',
           selected
             ? 'bg-[var(--surface-brand)] text-[var(--brand-primary)]'
