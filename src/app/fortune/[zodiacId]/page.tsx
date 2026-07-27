@@ -500,7 +500,7 @@ export default function FortuneDetailPage() {
           <div className="flex w-full gap-3">
             <Button
               hierarchy="secondary"
-              size="medium"
+              size="xlarge"
               fullWidth
               onClick={() => {
                 trackCompletionActionClicked({ zodiacId, action: 'return_to_fortune' });
@@ -511,7 +511,7 @@ export default function FortuneDetailPage() {
             </Button>
             <Button
               hierarchy="primary"
-              size="medium"
+              size="xlarge"
               fullWidth
               onClick={() => {
                 trackCompletionActionClicked({ zodiacId, action: 'view_saved' });
@@ -750,7 +750,7 @@ export default function FortuneDetailPage() {
           자동으로 review로 넘어가지 않으며 사용자가 직접 눌러야 이동한다. */}
       {isAllChecked && (
         <StickyActionBar className="animate-fade-in">
-          <Button hierarchy="primary" size="large" fullWidth onClick={goToReview}>
+          <Button hierarchy="primary" size="xlarge" fullWidth onClick={goToReview}>
             운세 속 단어 보관하기
           </Button>
         </StickyActionBar>

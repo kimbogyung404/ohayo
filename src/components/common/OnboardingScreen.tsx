@@ -122,7 +122,7 @@ export default function OnboardingScreen() {
       </div>
 
       <StickyActionBar>
-        <Button hierarchy="primary" size="large" fullWidth onClick={handleStart}>
+        <Button hierarchy="primary" size="xlarge" fullWidth onClick={handleStart}>
           시작하기
         </Button>
       </StickyActionBar>
