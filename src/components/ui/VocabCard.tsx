@@ -5,7 +5,8 @@ import type { PartOfSpeech } from '@/types/fortune';
 
 // DB의 partOfSpeech 값 → 카드에 표시할 한국어 라벨. 이 맵에 없는 값(레거시 null 포함)은
 // 호출부에서 partOfSpeech를 아예 넘기지 않아 품사 영역 자체가 생략된다.
-const PART_OF_SPEECH_LABELS: Record<PartOfSpeech, string> = {
+// 저장된 단어 화면의 품사 필터 칩도 이 라벨을 그대로 재사용한다(문구 중복 방지).
+export const PART_OF_SPEECH_LABELS: Record<PartOfSpeech, string> = {
   noun: '명사',
   verb: '동사',
   adjective: '형용사',
@@ -195,47 +196,56 @@ function splitOnUniqueOccurrence(
 
 // 저장 단어 플립 카드 뒷면 전용 "오늘 운세 속 문장" 섹션. 새 문장을 만들지 않고
 // DB에 저장된 sourceSentence/Reading/Translation을 그대로 보여준다. 위 공용 정보
-// 면(VocabCardContent)과 시각적으로 구분되도록 얇은 구분선(기존 border 토큰)만
-// 추가하고, 별도의 회색 박스나 그림자는 넣지 않는다. 라벨은 caption(보조 위계),
-// 문장은 원문 → 읽는 법(작게, 보조 색상) → 번역 순으로 카드 안 다른 텍스트와 같은
-// 가운데 정렬을 유지한다. 클릭 가능한 하이라이트가 아니라 순수 <span> 강조이며,
-// 이 영역을 눌러도 상위 role="button"(카드 뒤집기)으로 그대로 버블링된다.
+// 면(VocabCardContent)과의 구분선은 호출부(VocabCard flip 뒷면)에서 그린다 —
+// 이 컴포넌트는 문장 3줄(원문 → 읽는 법 → 번역)만 담당한다. 원문 안의 핵심 단어와
+// 번역 안의 대응 뜻을 각각 하이라이트한다(하이라이트 실패 시 — 0회 또는 2회 이상
+// 등장 — 조용히 일반 텍스트로 폴백, splitOnUniqueOccurrence 참고). 클릭 가능한
+// 하이라이트가 아니라 순수 <span> 강조이며, 이 영역을 눌러도 상위 role="button"
+// (카드 뒤집기)으로 그대로 버블링된다.
 function SourceSentenceSection({
   surfaceForm,
+  meaning,
   sourceSentence,
   sourceSentenceReading,
   sourceSentenceTranslation,
 }: {
   surfaceForm: string;
+  meaning: string;
   sourceSentence: string;
   sourceSentenceReading: string;
   sourceSentenceTranslation: string;
 }) {
-  const split = splitOnUniqueOccurrence(sourceSentence, surfaceForm);
+  const jpSplit = splitOnUniqueOccurrence(sourceSentence, surfaceForm);
+  const koSplit = splitOnUniqueOccurrence(sourceSentenceTranslation, meaning);
 
   return (
-    <div className="mt-4 w-full border-t border-[var(--border-default)] pt-4">
-      <p className="text-caption font-semibold tracking-wide text-[var(--text-tertiary)]">
-        오늘 운세 속 문장
-      </p>
-      <p className="text-b2-medium mt-2 w-full text-center text-[var(--text-primary)]" lang="ja">
-        {split ? (
+    <div className="flex w-full flex-col items-center gap-2">
+      <div className="flex w-full flex-wrap items-center justify-center gap-1" lang="ja">
+        {jpSplit ? (
           <>
-            {split.before}
-            <span className="rounded-[var(--radius-sm)] bg-[var(--surface-brand)] px-1 text-[var(--brand-primary)]">
-              {split.match}
+            <span className="text-b2-medium text-[var(--text-primary)]">{jpSplit.before}</span>
+            <span className="rounded-[var(--radius-sm)] bg-[var(--surface-brand)] px-2 py-1 text-b2-medium text-[var(--brand-primary)]">
+              {jpSplit.match}
             </span>
-            {split.after}
+            <span className="text-b2-medium text-[var(--text-primary)]">{jpSplit.after}</span>
           </>
         ) : (
-          sourceSentence
+          <span className="text-b2-medium w-full text-center text-[var(--text-primary)]">{sourceSentence}</span>
         )}
-      </p>
-      <p className="text-caption mt-1 w-full text-center text-[var(--text-tertiary)]" lang="ja">
+      </div>
+      <p className="text-caption w-full text-center text-[var(--text-secondary)]" lang="ja">
         {sourceSentenceReading}
       </p>
-      <p className="text-b2-medium mt-3 w-full text-center text-[var(--text-secondary)]">
-        {sourceSentenceTranslation}
+      <p className="text-b2-medium w-full text-center text-[var(--text-primary)]">
+        {koSplit ? (
+          <>
+            {koSplit.before}
+            <span className="text-[var(--brand-primary)]">{koSplit.match}</span>
+            {koSplit.after}
+          </>
+        ) : (
+          sourceSentenceTranslation
+        )}
       </p>
     </div>
   );
@@ -298,7 +308,7 @@ export default function VocabCard(props: VocabCardProps) {
             tabIndex={revealed ? -1 : 0}
             className={[
               'flip-card-face flip-card-front flex flex-col items-center justify-center gap-3',
-              'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--surface-subtle)] p-5',
+              'rounded-[var(--radius-md)] border-[1.5px] border-[var(--border-default)] bg-[var(--surface-subtle)] p-5',
               revealed ? 'pointer-events-none' : '',
             ]
               .filter(Boolean)
@@ -307,7 +317,7 @@ export default function VocabCard(props: VocabCardProps) {
             <p className="text-jp-h1 w-full text-center text-[var(--text-primary)]" lang="ja">
               {word}
             </p>
-            <p className="text-b2-medium text-left text-[var(--text-tertiary)]">
+            <p className="text-b2-medium w-full text-center text-[var(--text-secondary)]">
               뜻을 떠올린 뒤, 카드를 뒤집어보세요
             </p>
           </button>
@@ -327,8 +337,8 @@ export default function VocabCard(props: VocabCardProps) {
             aria-expanded={revealed}
             aria-hidden={!revealed}
             className={[
-              'flip-card-face flip-card-back flex flex-col cursor-pointer',
-              'rounded-[var(--radius-lg)] border-[1.5px] border-[var(--border-default)] bg-[var(--color-white)] p-5',
+              'flip-card-face flip-card-back flex flex-col cursor-pointer gap-[18px]',
+              'rounded-[var(--radius-md)] border-[1.5px] border-[var(--border-default)] bg-[var(--color-white)] p-5',
               !revealed ? 'pointer-events-none' : '',
             ]
               .filter(Boolean)
@@ -344,12 +354,16 @@ export default function VocabCard(props: VocabCardProps) {
               audioTabIndex={revealed ? 0 : -1}
             />
             {hasSourceSentenceSection && (
-              <SourceSentenceSection
-                surfaceForm={word}
-                sourceSentence={sourceSentence as string}
-                sourceSentenceReading={sourceSentenceReading as string}
-                sourceSentenceTranslation={sourceSentenceTranslation as string}
-              />
+              <>
+                <div className="w-full border-t border-[var(--border-default)]" />
+                <SourceSentenceSection
+                  surfaceForm={word}
+                  meaning={meaning}
+                  sourceSentence={sourceSentence as string}
+                  sourceSentenceReading={sourceSentenceReading as string}
+                  sourceSentenceTranslation={sourceSentenceTranslation as string}
+                />
+              </>
             )}
           </div>
         </div>

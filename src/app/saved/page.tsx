@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSavedVocabulary } from '@/hooks/useSavedVocabulary';
 import AuthTopNav from '@/components/common/AuthTopNav';
-import VocabCard from '@/components/ui/VocabCard';
+import VocabCard, { PART_OF_SPEECH_LABELS } from '@/components/ui/VocabCard';
 import Button from '@/components/ui/Button';
 import EmptyState from '@/components/common/EmptyState';
 import LoadingState from '@/components/common/LoadingState';
@@ -14,6 +14,17 @@ import BottomNavigation from '@/components/ui/BottomNavigation';
 import { speak } from '@/lib/speak';
 import { trackSavedTabViewed, trackSavedVocabFlipped } from '@/lib/analytics/events';
 import type { SavedWord } from '@/types/vocabulary';
+import type { PartOfSpeech } from '@/types/fortune';
+
+type PartOfSpeechFilter = 'all' | PartOfSpeech;
+
+const FILTER_OPTIONS: { value: PartOfSpeechFilter; label: string }[] = [
+  { value: 'all', label: '전체' },
+  ...(Object.entries(PART_OF_SPEECH_LABELS) as [PartOfSpeech, string][]).map(([value, label]) => ({
+    value,
+    label,
+  })),
+];
 
 export default function SavedPage() {
   const { user, isLoggedIn, isLoading: isAuthLoading } = useAuth();
@@ -27,6 +38,16 @@ export default function SavedPage() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  // 품사 필터. 목록 표시(뒤집기 모드)와 삭제 모드 모두에 동일하게 적용된다.
+  const [partOfSpeechFilter, setPartOfSpeechFilter] = useState<PartOfSpeechFilter>('all');
+
+  const filteredWords = useMemo(
+    () =>
+      partOfSpeechFilter === 'all'
+        ? savedWords
+        : savedWords.filter((w) => w.vocabulary.partOfSpeech === partOfSpeechFilter),
+    [savedWords, partOfSpeechFilter]
+  );
 
   // saved_tab_viewed 중복 전송 방지 — 목록이 실제로 표시된 시점에 이 마운트당 1회만.
   const savedTabViewedTrackedRef = useRef(false);
@@ -157,7 +178,7 @@ export default function SavedPage() {
         <div className="px-[var(--page-padding-x)] pt-6">
           <h1 className="text-h1 text-[var(--text-primary)]">
             저장된 단어{' '}
-            <span className="text-[var(--text-brand)]">0개</span>
+            <span className="text-[var(--text-brand)]">0</span>
           </h1>
         </div>
         <EmptyState
@@ -186,7 +207,7 @@ export default function SavedPage() {
       <div className="flex items-start justify-between px-[var(--page-padding-x)] pt-6">
         <h1 className="min-w-0 text-h1 text-[var(--text-primary)]">
           저장된 단어{' '}
-          <span className="text-[var(--text-brand)]">{savedWords.length}개</span>
+          <span className="text-[var(--text-brand)]">{savedWords.length}</span>
         </h1>
 
         {/* 삭제 모드일 때 "취소"를 "N개 삭제하기"와 같은 행에, 왼쪽에 나란히 배치한다
@@ -219,7 +240,30 @@ export default function SavedPage() {
 
       {/* 저장 단어 카드 목록 */}
       <div className="space-y-4 px-[var(--page-padding-x)] py-6">
-        {savedWords.map((item) => {
+        {/* 품사 필터 */}
+        <div role="group" aria-label="품사 필터" className="flex flex-wrap gap-2">
+          {FILTER_OPTIONS.map((option) => {
+            const active = partOfSpeechFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPartOfSpeechFilter(option.value)}
+                className={[
+                  'h-[50px] rounded-[var(--radius-md)] border-[1.5px] px-4 py-3 text-b2-medium whitespace-nowrap',
+                  active
+                    ? 'border-[var(--border-brand)] bg-[var(--color-white)] text-[var(--text-brand)]'
+                    : 'border-[var(--border-default)] bg-[var(--color-white)] text-[var(--text-secondary)]',
+                ].join(' ')}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {filteredWords.map((item) => {
           if (deleteMode) {
             return (
               <VocabCard
