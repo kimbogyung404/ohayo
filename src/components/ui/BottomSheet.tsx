@@ -45,13 +45,20 @@ export default function BottomSheet({
     };
   }, [isOpen, onClose]);
 
-  // 포커스 트랩 (첫 열릴 때)
+  // 열릴 때 시트 안으로 포커스를 옮기고, 닫힐 때는 열기 직전 포커스였던 요소(대개
+  // 이 시트를 연 트리거 버튼)로 되돌린다 — 키보드/스크린리더 사용자가 시트를 닫은
+  // 뒤 다시 트리거 위치를 찾아 헤매지 않도록 한다.
   useEffect(() => {
     if (isOpen && sheetRef.current) {
+      const previouslyFocused = document.activeElement as HTMLElement | null;
       const focusable = sheetRef.current.querySelector<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
       focusable?.focus();
+
+      return () => {
+        previouslyFocused?.focus();
+      };
     }
   }, [isOpen]);
 

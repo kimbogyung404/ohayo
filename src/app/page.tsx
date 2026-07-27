@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar';
 import ZodiacAsset from '@/components/ui/ZodiacAsset';
 import AuthTopNav from '@/components/common/AuthTopNav';
 import ZodiacTrackedLink from '@/components/common/ZodiacTrackedLink';
+import ZodiacBanner from '@/components/home/ZodiacBanner';
 import { ZODIAC_PERIOD_LABELS } from '@/lib/zodiac';
 import type { ZodiacRankItem } from '@/types/fortune';
 
@@ -116,6 +117,7 @@ export default async function HomePage() {
   return (
     <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
       <AuthTopNav />
+      <ZodiacBanner />
 
       {ranking.length === 0 ? (
         <>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import StickyActionBar from '@/components/ui/StickyActionBar';
+import BirthdaySelectStep from '@/components/onboarding/BirthdaySelectStep';
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { ZODIACS } from '@/lib/zodiac';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -32,13 +33,19 @@ const BOUNCE_VARIANTS = [
   { duration: 4.2, delay: 0.9, amplitude: 5 },
 ] as const;
 
-// 최초 방문에만 스플래시 다음에 노출되는 온보딩 1장. localStorage에 완료 여부가
-// 없으면(최초 방문) 보여주고, "시작하기"를 누르면 완료로 기록한 뒤 홈으로 이동한다.
+type OnboardingStep = 'intro' | 'birthday';
+
+// 최초 방문에만 스플래시 다음에 노출되는 온보딩. 소개(intro) 1장 다음에 생일 선택
+// (birthday) 단계가 이어진다. localStorage에 완료 여부가 없으면(최초 방문) intro부터
+// 보여주고, 생일 선택까지 마쳐야 완료로 기록한 뒤 홈으로 이동한다 — intro의
+// "시작하기"는 더 이상 완료를 기록하지 않고 다음 단계로만 넘어간다(§2, §7: 생일
+// 선택을 완료하기 전에는 온보딩 완료 상태를 저장하지 않는다).
 // 서버 렌더/첫 hydration 프레임은 항상 "숨김" 상태로 그려서 hydration mismatch를
 // 피하고(SplashScreen과 동일한 패턴), localStorage 확인은 마운트 이후 effect에서만
 // 한다 — 그 사이 스플래시가 화면을 가리고 있으므로 사용자에게는 깜빡임이 없다.
 export default function OnboardingScreen() {
   const [show, setShow] = useState(false);
+  const [step, setStep] = useState<OnboardingStep>('intro');
   const router = useRouter();
 
   useEffect(() => {
@@ -60,12 +67,13 @@ export default function OnboardingScreen() {
   // 겹쳐도 안전하도록 공통 useBodyScrollLock(중첩 카운트 기반)을 쓴다.
   useBodyScrollLock(show);
 
+  // 소개 화면의 "시작하기": 온보딩 완료를 기록하지 않고 생일 선택 단계로만 넘어간다.
   const handleStart = () => {
-    try {
-      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
-    } catch {
-      // 저장에 실패해도 이번 화면은 그대로 진행한다(다음 방문에 다시 노출될 수 있음).
-    }
+    setStep('birthday');
+  };
+
+  // 생일 선택까지 마친 뒤(BirthdaySelectStep이 저장을 끝낸 뒤) 호출된다.
+  const handleBirthdayComplete = () => {
     setShow(false);
     router.push('/');
   };
@@ -78,8 +86,12 @@ export default function OnboardingScreen() {
       style={{ zIndex: Z_INDEX, maxWidth: 'var(--max-width-app)', margin: '0 auto' }}
       role="dialog"
       aria-modal="true"
-      aria-label="OHAYO! 소개"
+      aria-label={step === 'intro' ? 'OHAYO! 소개' : '생일을 선택해주세요'}
     >
+      {step === 'birthday' ? (
+        <BirthdaySelectStep onComplete={handleBirthdayComplete} />
+      ) : (
+        <>
       <div className="onboarding-content-pad flex flex-1 flex-col overflow-y-auto">
         <div
           className="shrink-0 px-[var(--page-padding-x)] text-left"
@@ -126,6 +138,8 @@ export default function OnboardingScreen() {
           시작하기
         </Button>
       </StickyActionBar>
+        </>
+      )}
     </div>
   );
 }
