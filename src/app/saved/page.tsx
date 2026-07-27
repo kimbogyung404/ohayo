@@ -11,6 +11,7 @@ import LoadingState from '@/components/common/LoadingState';
 import ErrorState from '@/components/common/ErrorState';
 import { useToast } from '@/components/ui/Toast';
 import BottomNavigation from '@/components/ui/BottomNavigation';
+import ScrollToTopButton from '@/components/ui/ScrollToTopButton';
 import { speak } from '@/lib/speak';
 import { trackSavedTabViewed, trackSavedVocabFlipped } from '@/lib/analytics/events';
 import type { SavedWord } from '@/types/vocabulary';
@@ -119,7 +120,7 @@ export default function SavedPage() {
   // 인증 상태 확인 중
   if (isAuthLoading) {
     return (
-      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
         <AuthTopNav />
         <LoadingState />
         <BottomNavigation activeItem="saved" />
@@ -130,7 +131,7 @@ export default function SavedPage() {
   // 비로그인 상태
   if (!isLoggedIn) {
     return (
-      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
         <AuthTopNav />
         <EmptyState
           icon="📚"
@@ -147,7 +148,7 @@ export default function SavedPage() {
   // 저장 단어 조회 중
   if (!isLoaded) {
     return (
-      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
         <AuthTopNav />
         <LoadingState />
         <BottomNavigation activeItem="saved" />
@@ -158,7 +159,7 @@ export default function SavedPage() {
   // 조회 실패
   if (loadError) {
     return (
-      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
         <AuthTopNav />
         <ErrorState
           title="저장한 단어를 불러오지 못했어요"
@@ -173,7 +174,7 @@ export default function SavedPage() {
   // 저장 단어 없음
   if (savedWords.length === 0) {
     return (
-      <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+      <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
         <AuthTopNav />
         <div className="px-[var(--page-padding-x)] pt-6">
           <h1 className="text-h1 text-[var(--text-primary)]">
@@ -200,7 +201,7 @@ export default function SavedPage() {
       : '삭제하기';
 
   return (
-    <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
+    <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
       <AuthTopNav />
 
       {/* 헤더 */}
@@ -238,8 +239,9 @@ export default function SavedPage() {
         </div>
       </div>
 
-      {/* 저장 단어 카드 목록 */}
-      <div className="space-y-4 px-[var(--page-padding-x)] py-6">
+      {/* 저장 단어 카드 목록. 하단 padding은 ScrollToTopButton(40px 버튼 + 위아래 여백)이
+          맨 아래까지 스크롤했을 때도 마지막 카드와 겹치지 않도록 기본 py-6보다 더 확보한다. */}
+      <div className="space-y-4 px-[var(--page-padding-x)] pt-6 pb-[calc(var(--space-6)+var(--space-4)+40px+var(--space-4))]">
         {/* 품사 필터 */}
         <div role="group" aria-label="품사 필터" className="flex flex-wrap gap-2">
           {FILTER_OPTIONS.map((option) => {
@@ -299,6 +301,7 @@ export default function SavedPage() {
         })}
       </div>
 
+      <ScrollToTopButton />
       <BottomNavigation activeItem="saved" />
     </div>
   );

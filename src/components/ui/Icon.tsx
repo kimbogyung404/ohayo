@@ -10,6 +10,7 @@ import { VolumeIcon } from '@/components/icons/VolumeIcon';
 import { SmileIcon } from '@/components/icons/SmileIcon';
 import { MehIcon } from '@/components/icons/MehIcon';
 import { FrownIcon } from '@/components/icons/FrownIcon';
+import { DoubleChevronUpIcon } from '@/components/icons/DoubleChevronUpIcon';
 
 export type IconName =
   | 'folder'
@@ -22,7 +23,8 @@ export type IconName =
   | 'volume'
   | 'smile'
   | 'meh'
-  | 'frown';
+  | 'frown'
+  | 'double-chevron-up';
 
 export type IconVariant = 'outline' | 'filled';
 
@@ -40,6 +42,7 @@ const iconMap: Record<IconName, { outline: SvgComponent; filled?: SvgComponent }
   smile: { outline: SmileIcon },
   meh: { outline: MehIcon },
   frown: { outline: FrownIcon },
+  'double-chevron-up': { outline: DoubleChevronUpIcon },
 };
 
 type FilledIconName = 'folder' | 'star';
