@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import Icon from './Icon';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -29,11 +30,14 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-const typeStyles: Record<ToastType, { bg: string; icon: string }> = {
-  success: { bg: 'bg-[var(--color-success)]', icon: '✓' },
-  error: { bg: 'bg-[var(--color-error)]', icon: '✕' },
-  warning: { bg: 'bg-[var(--color-warning)]', icon: '!' },
-  info: { bg: 'bg-[var(--brand-primary)]', icon: 'i' },
+// 배경은 모든 타입이 동일한 Gray 700(--gray-700, Tooltip과 같은 토큰)을 쓰고,
+// 타입 구분은 아이콘 배지로 표시한다. info만 문자 "i" 대신 디자인 시스템의
+// 정보 아이콘(Icon name="info", Figma node 93:589)을 그대로 재사용한다.
+const typeStyles: Record<ToastType, { bg: string; icon: string | null }> = {
+  success: { bg: 'bg-[var(--gray-700)]', icon: '✓' },
+  error: { bg: 'bg-[var(--gray-700)]', icon: '✕' },
+  warning: { bg: 'bg-[var(--gray-700)]', icon: '!' },
+  info: { bg: 'bg-[var(--gray-700)]', icon: null },
 };
 
 function ToastItem({ toast, onRemove }: { toast: ToastItem; onRemove: (id: string) => void }) {
@@ -48,14 +52,14 @@ function ToastItem({ toast, onRemove }: { toast: ToastItem; onRemove: (id: strin
     <div
       role="alert"
       aria-live="polite"
-      className={`flex items-center gap-2 px-4 py-3 rounded-[var(--radius-md)] text-white text-b2-medium ${style.bg}`}
+      className={`flex items-center gap-2 px-4 py-3 rounded-[var(--radius-md)] text-[var(--text-inverse)] text-b2-medium ${style.bg}`}
       style={{ boxShadow: 'var(--shadow-overlay)' }}
     >
       <span
         className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/20 text-xs font-bold"
         aria-hidden="true"
       >
-        {style.icon}
+        {toast.type === 'info' ? <Icon name="info" size={14} /> : style.icon}
       </span>
       <span className="flex-1">{toast.message}</span>
       {toast.action && (
@@ -92,7 +96,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {/* Toast 렌더링 영역 */}
       <div
-        className="fixed bottom-[calc(var(--nav-height)+16px)] left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[calc(var(--max-width-app)-36px)] pointer-events-none"
+        className="fixed bottom-[calc(var(--nav-height)+16px)] left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[calc(100vw-36px)] max-w-[calc(var(--max-width-app)-36px)] pointer-events-none"
         aria-live="polite"
         aria-atomic="false"
       >
