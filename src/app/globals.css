@@ -47,6 +47,9 @@
   --color-error: #ef4444;
   --color-warning: #f59e0b;
   --color-information: var(--brand-primary);
+  /* "이미 저장된 단어" 표시 전용 의미 토큰. 일반 success(#22c55e)와는 다른 Figma
+     지정 색상(#08b170)이라 --color-success를 바꾸지 않고 별도로 둔다. */
+  --color-saved: #08b170;
 
   /* ── Gradient ── */
   --gradient-brand-bottom: linear-gradient(
@@ -157,6 +160,7 @@
   --color-success: var(--color-success);
   --color-error: var(--color-error);
   --color-warning: var(--color-warning);
+  --color-saved: var(--color-saved);
 
   /* Spacing */
   --spacing-page: var(--page-padding-x);

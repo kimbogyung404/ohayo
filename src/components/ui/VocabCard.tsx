@@ -50,6 +50,11 @@ type VocabCardProps =
   | {
       mode: 'select';
       selected: boolean;
+      // Word Review 전용: review 단어 중 이미 단어장에 저장된 항목. 우선순위는
+      // alreadySaved > selected > default — true면 선택/해제 자체가 불가능한 완료
+      // 상태로 렌더링되고 selected 값은 무시된다. Saved Words 삭제 모드는 이 prop을
+      // 넘기지 않으므로(undefined) 기존 select 카드 동작에 전혀 영향이 없다.
+      alreadySaved?: boolean;
       word: string;
       reading?: string;
       meaning: string;
@@ -372,49 +377,74 @@ export default function VocabCard(props: VocabCardProps) {
   }
 
   // mode === 'select'
-  const { selected, word, reading, meaning, partOfSpeech, onSelect, onPlayAudio } = props;
+  const { selected, alreadySaved = false, word, reading, meaning, partOfSpeech, onSelect, onPlayAudio } = props;
+
+  // 우선순위: alreadySaved > selected > default. 이미 저장된 카드는 브랜드색 선택
+  // border를 절대 적용하지 않는다(기본 카드 border 유지).
+  const badge = alreadySaved ? (
+    <div className="flex shrink-0 items-center gap-1 self-end">
+      <Icon name="check" size={24} aria-hidden="true" className="text-[var(--color-saved)]" />
+      <span className="text-caption text-[var(--color-saved)]">이미 저장된 단어</span>
+    </div>
+  ) : (
+    <Icon
+      name="check"
+      size={24}
+      aria-hidden="true"
+      className={selected ? 'text-[var(--border-brand)]' : 'text-[var(--border-strong)]'}
+    />
+  );
+
+  const content = (
+    <>
+      {badge}
+      <VocabCardContent
+        word={word}
+        reading={reading}
+        meaning={meaning}
+        partOfSpeech={partOfSpeech}
+        onPlayAudio={onPlayAudio}
+        stopAudioPropagation
+      />
+    </>
+  );
+
   return (
     <div
       className={[
         'relative w-full min-h-[132px] rounded-[var(--radius-lg)] border-[1.5px] bg-[var(--color-white)] p-5',
-        selected ? 'border-[var(--border-brand)]' : 'border-[var(--border-default)]',
+        !alreadySaved && selected ? 'border-[var(--border-brand)]' : 'border-[var(--border-default)]',
         rootClassName,
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      {/* 공용 정보 면(VocabCardContent)을 감싸는 선택 영역. div+role="button"인 이유는
-          VocabCardContent 내부에 이미 실제 <button>(발음 듣기)이 있어 <button> 중첩을
-          피해야 하기 때문이다(flip 뒷면과 동일한 이유). 체크 아이콘은 콘텐츠 위에
-          겹치지 않도록 별도의 줄(우측 정렬)로 먼저 배치한다. */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onSelect}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
-        aria-pressed={selected}
-        className="flex w-full cursor-pointer flex-col items-end"
-      >
-        <Icon
-          name="check"
-          size={24}
-          aria-hidden="true"
-          className={selected ? 'text-[var(--border-brand)]' : 'text-[var(--border-strong)]'}
-        />
-        <VocabCardContent
-          word={word}
-          reading={reading}
-          meaning={meaning}
-          partOfSpeech={partOfSpeech}
-          onPlayAudio={onPlayAudio}
-          stopAudioPropagation
-        />
-      </div>
+      {alreadySaved ? (
+        // 이미 저장된 카드는 선택/해제가 불가능한 완료 상태이므로 role="button"/onClick을
+        // 아예 붙이지 않는다 — 호출부의 onSelect no-op에만 기대지 않고, 컴포넌트
+        // 스스로도 눌러도 아무 반응이 없음을 보장한다.
+        <div className="flex w-full flex-col items-end">{content}</div>
+      ) : (
+        // 공용 정보 면(VocabCardContent)을 감싸는 선택 영역. div+role="button"인 이유는
+        // VocabCardContent 내부에 이미 실제 <button>(발음 듣기)이 있어 <button> 중첩을
+        // 피해야 하기 때문이다(flip 뒷면과 동일한 이유). 체크 아이콘은 콘텐츠 위에
+        // 겹치지 않도록 별도의 줄(우측 정렬)로 먼저 배치한다.
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onSelect}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect();
+            }
+          }}
+          aria-pressed={selected}
+          className="flex w-full cursor-pointer flex-col items-end"
+        >
+          {content}
+        </div>
+      )}
     </div>
   );
 }

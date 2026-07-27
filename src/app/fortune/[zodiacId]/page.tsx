@@ -544,21 +544,18 @@ export default function FortuneDetailPage() {
             {fortune.vocabulary.map((vocab) => {
               const alreadySaved = isSaved(vocab.id);
               return (
-                <div key={vocab.id}>
-                  <VocabCard
-                    mode="select"
-                    selected={alreadySaved || selectedWordIds.has(vocab.id)}
-                    word={vocab.surfaceForm}
-                    reading={vocab.reading}
-                    meaning={vocab.meaning}
-                    partOfSpeech={vocab.partOfSpeech}
-                    onSelect={alreadySaved ? () => {} : () => toggleSelectWord(vocab.id)}
-                    onPlayAudio={() => speak(vocab.reading || vocab.surfaceForm)}
-                  />
-                  {alreadySaved && (
-                    <p className="mt-1 text-caption text-[var(--text-tertiary)]">이미 저장된 단어예요</p>
-                  )}
-                </div>
+                <VocabCard
+                  key={vocab.id}
+                  mode="select"
+                  selected={selectedWordIds.has(vocab.id)}
+                  alreadySaved={alreadySaved}
+                  word={vocab.surfaceForm}
+                  reading={vocab.reading}
+                  meaning={vocab.meaning}
+                  partOfSpeech={vocab.partOfSpeech}
+                  onSelect={alreadySaved ? () => {} : () => toggleSelectWord(vocab.id)}
+                  onPlayAudio={() => speak(vocab.reading || vocab.surfaceForm)}
+                />
               );
             })}
           </div>
