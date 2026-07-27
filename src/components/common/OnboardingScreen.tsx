@@ -85,10 +85,10 @@ export default function OnboardingScreen() {
           className="shrink-0 px-[var(--page-padding-x)] text-left"
           style={{ paddingTop: 'calc(env(safe-area-inset-top) + 32px)' }}
         >
-          <p className="text-h1 text-[var(--text-primary)]">
-            오늘의 운세로
+          <p className="text-h1 text-[var(--text-primary)]" style={{ fontWeight: 700 }}>
+            오늘의 <span className="text-[var(--text-brand)]">별자리 운세로</span>
             <br />
-            일본어 단어를 배워보세요
+            <span className="text-[var(--text-brand)]">일본어 단어를</span> 배워보세요
           </p>
           <p className="mt-3 text-b2-regular text-[var(--text-secondary)]">
             별자리 운세를 읽고, 마음에 남는 단어를 저장하며
