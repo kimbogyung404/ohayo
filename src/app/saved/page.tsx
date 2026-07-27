@@ -194,18 +194,17 @@ export default function SavedPage() {
     );
   }
 
-  const deleteButtonLabel = !deleteMode
-    ? '단어 삭제하기'
-    : selectedIds.size > 0
-      ? `${selectedIds.size}개 삭제하기`
-      : '삭제하기';
+  // 삭제 모드가 활성화된 뒤("N개 삭제하기"/"삭제하기")의 라벨. 진입 전 상태("단어
+  // 삭제")는 별도의 텍스트 버튼으로 분리 렌더링하므로 이 라벨에는 포함하지 않는다.
+  const activeDeleteLabel = selectedIds.size > 0 ? `${selectedIds.size}개 삭제하기` : '삭제하기';
 
   return (
     <div className="page-content-with-bottom-nav min-h-dvh bg-[var(--surface-brand)]">
       <AuthTopNav />
 
-      {/* 헤더 */}
-      <div className="flex items-start justify-between px-[var(--page-padding-x)] pt-6">
+      {/* 헤더. Figma(Saved Words 45:655 → Frame 45:668)가 제목과 액션을 items-center로
+          맞추고 있어 기존 items-start에서 변경했다. */}
+      <div className="flex items-center justify-between px-[var(--page-padding-x)] pt-6">
         <h1 className="min-w-0 text-h1 text-[var(--text-primary)]">
           저장된 단어{' '}
           <span className="text-[var(--text-brand)]">{savedWords.length}</span>
@@ -227,15 +226,31 @@ export default function SavedPage() {
               취소
             </button>
           )}
-          <Button
-            hierarchy="primary"
-            size="small"
-            disabled={deleteMode && selectedIds.size === 0}
-            onClick={deleteMode ? handleDeleteRequest : enterDeleteMode}
-            className="whitespace-nowrap"
-          >
-            {deleteButtonLabel}
-          </Button>
+          {deleteMode ? (
+            // 삭제 확정 상태("N개 삭제하기"/"삭제하기")는 스타일 변경 대상이 아니므로
+            // 기존 Button(primary/small)을 그대로 유지한다.
+            <Button
+              hierarchy="primary"
+              size="small"
+              disabled={selectedIds.size === 0}
+              onClick={handleDeleteRequest}
+              className="whitespace-nowrap"
+            >
+              {activeDeleteLabel}
+            </Button>
+          ) : (
+            // 진입 상태("단어 삭제")는 배경/border/shadow 없이 브랜드 보라색 텍스트만
+            // 보이는 페이지 내부 텍스트 버튼. "취소" 버튼과 같은 방식(순수 <button> +
+            // 기존 색상/타이포 토큰 재사용)으로 처리하고, 시각적으로 텍스트만 보여도
+            // padding으로 클릭 영역과 포커스 링을 충분히 확보한다.
+            <button
+              type="button"
+              onClick={enterDeleteMode}
+              className="whitespace-nowrap rounded px-2 py-2 text-b2-medium text-[var(--text-brand)] transition-colors hover:text-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+            >
+              단어 삭제
+            </button>
+          )}
         </div>
       </div>
 
