@@ -17,9 +17,14 @@ const RANK_IMAGE_SRC: Record<1 | 2 | 3, string> = {
   3: '/images/ranking/rank-3.png',
 };
 
-// Figma Taro_card1 배경 — 140x206 비율의 장식 프레임(SVG). 1·2·3위 카드 모두 동일하게
-// 쓴다(순위 구분은 배경색이 아니라 카드 위 순위 별로 표시).
-const CARD_BACKGROUND_SRC = '/images/cards/zodiac-card-selected.svg';
+// Figma Taro_card 배경 — 140x206 비율의 장식 프레임(SVG). 순위별로 색상 테마가
+// 다르다(1위 인디고, 2위 블루, 3위 바이올렛). 장식 프레임 형태·비율은 동일하고
+// 색상만 다른 variant이므로 파일만 순위별로 분리한다.
+const CARD_BACKGROUND_SRC: Record<1 | 2 | 3, string> = {
+  1: '/images/cards/zodiac-card-selected.svg',
+  2: '/images/cards/zodiac-card-rank2.svg',
+  3: '/images/cards/zodiac-card-rank3.svg',
+};
 
 // 홈 제목은 접속 시점의 실제 오늘 날짜가 아니라 화면에 표시 중인 랭킹 데이터의
 // 기준일(readyDate)을 보여준다 — Cron이 지연되어 최신 데이터가 어제 날짜일 때도
@@ -44,12 +49,14 @@ function TopRankCard({
   item: ZodiacRankItem;
   className?: string;
 }) {
-  const imageSrc = RANK_IMAGE_SRC[item.rank as 1 | 2 | 3];
+  const rank = item.rank as 1 | 2 | 3;
+  const imageSrc = RANK_IMAGE_SRC[rank];
+  const cardBackgroundSrc = CARD_BACKGROUND_SRC[rank];
   const periodLabel = ZODIAC_PERIOD_LABELS[item.zodiacId];
   // 기간 데이터("4월 20일 ~ 5월 20일")는 그대로 두고 화면 표시만 "4월 20일" /
   // "~5월 20일" 두 줄로 명시적으로 분리한다 (formatZodiacPeriod의 " ~ " 구분자 기준).
   const [periodStart, periodEnd] = periodLabel.split(' ~ ');
-  // Taro_card1 배경은 진한 남색/보라 그라데이션이라 1·2·3위 모두 text-inverse를 쓴다.
+  // 카드 배경은 순위별로 색이 달라도 전부 진한 톤이라 1·2·3위 모두 text-inverse를 쓴다.
   const nameColor = 'text-[var(--text-inverse)]';
   const periodColor = 'text-[var(--text-inverse)]';
 
@@ -69,7 +76,7 @@ function TopRankCard({
         ariaLabel={`${item.rank}위 ${item.zodiacKorean} 운세 보기`}
       >
         <img
-          src={CARD_BACKGROUND_SRC}
+          src={cardBackgroundSrc}
           alt=""
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 h-full w-full select-none"
@@ -78,15 +85,21 @@ function TopRankCard({
             기준)·left/right(%는 너비 기준)로 잡는다 — 같은 값을 padding으로 주면
             top/bottom도 너비 기준으로 계산되는 CSS 스펙 때문에 프레임 하단 리본과
             겹친다. top/bottom은 Figma "Exclude" 프레임의 안쪽 창(y 14~193 / 206)
-            실측치를 그대로 썼다. 그 안전 영역 안에서 이미지·이름·시작일·종료일을
-            하나의 flex column으로 묶어 justify-center로 카드 정중앙에 배치한다. */}
-        <div className="absolute top-[6.8%] right-[9.3%] bottom-[6.3%] left-[9.3%] flex flex-col items-center justify-center gap-0.5 text-center">
-          <div className="relative aspect-square w-[81%]">
+            실측치를 그대로 썼다. 별자리 이미지는 안전 영역 폭의 96.5%(Figma 실측
+            110/140px)까지 채우고, 이름·기간 텍스트 그룹과는 간격 없이 바로 붙는다
+            (Figma에서 이미지 하단=텍스트 그룹 시작 지점이 정확히 일치). 이름과
+            기간 사이는 4px, 기간 두 줄 사이는 2px로 Figma 실측치와 맞춘다. */}
+        <div className="absolute top-[6.8%] right-[9.3%] bottom-[6.3%] left-[9.3%] flex flex-col items-center justify-center text-center">
+          <div className="relative aspect-square w-[96.5%]">
             <ZodiacAsset zodiac={item.zodiacId} alt="" />
           </div>
-          <span className={`text-b2-medium ${nameColor}`}>{item.zodiacKorean}</span>
-          <span className={`text-caption leading-tight ${periodColor}`}>{periodStart}</span>
-          <span className={`text-caption leading-tight ${periodColor}`}>{`~${periodEnd}`}</span>
+          <div className="flex flex-col items-center gap-1">
+            <span className={`text-b2-medium ${nameColor}`}>{item.zodiacKorean}</span>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className={`text-caption leading-tight ${periodColor}`}>{periodStart}</span>
+              <span className={`text-caption leading-tight ${periodColor}`}>{`~${periodEnd}`}</span>
+            </div>
+          </div>
         </div>
       </ZodiacTrackedLink>
     </div>
@@ -107,7 +120,7 @@ export default async function HomePage() {
       {ranking.length === 0 ? (
         <>
           {readyDate && (
-            <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+            <p className="px-[var(--page-padding-x)] pt-4 text-center text-h1 text-[var(--text-primary)]">
               {formatDateLabel(readyDate)} 별자리 운세 순위
             </p>
           )}
@@ -119,16 +132,12 @@ export default async function HomePage() {
         </>
       ) : (
         <>
-          {/* ─── 운세 순위 상단 영역(제목 + 상위 3개 카드): 어두운 남색에서 밝은
-              라벤더로 이어지는 그라데이션 배경. pb-[10px]는 그라데이션 값/스톱은
-              그대로 두고 적용 영역의 하단 경계만 10px 더 늘리기 위한 것이다(자식
-              레이아웃·간격에는 영향 없음, 배경이 깔리는 박스만 커진다). ─── */}
-          <div
-            className="pb-[10px]"
-            style={{ background: 'linear-gradient(180deg, #222431 0%, #6060A9 69.99%, #EEF0FF 100%)' }}
-          >
+          {/* ─── 운세 순위 상단 영역(제목 + 상위 3개 카드). 페이지 전체와 동일한
+              브랜드 배경(surface-brand)을 그대로 쓰고, 이 영역만의 하단 여백만
+              pb-4로 둔다(과거의 어두운 그라데이션 배경은 제거됨). ─── */}
+          <div className="pb-4">
             {readyDate && (
-              <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-inverse)]">
+              <p className="px-[var(--page-padding-x)] pt-4 text-center text-h1 text-[var(--text-primary)]">
                 {formatDateLabel(readyDate)} 별자리 운세 순위
               </p>
             )}
@@ -173,7 +182,7 @@ export default async function HomePage() {
           {/* ─── 출처 푸터 ─── */}
           <footer className="px-[var(--page-padding-x)] pb-6 text-center">
             <p className="text-caption text-[var(--text-disabled)]">
-              운세 출처: ABC TV 「おはよう朝日です」
+              운세 출처: ABC TV <span lang="ja">「おはよう朝日です」</span>
             </p>
             <p className="text-caption text-[var(--text-disabled)] mt-0.5">
               OHAYO!는 ABC TV의 공식 서비스가 아닙니다.
