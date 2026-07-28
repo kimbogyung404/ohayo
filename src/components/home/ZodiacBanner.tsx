@@ -62,9 +62,9 @@ export default function ZodiacBanner() {
           <button
             type="button"
             onClick={() => setIsBirthdaySheetOpen(true)}
-            className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] bg-[var(--color-white)] px-4 py-3 shadow-[var(--shadow-100)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+            className="flex h-[68px] w-full items-center gap-4 rounded-[var(--radius-lg)] bg-[var(--color-white)] px-4 py-3 shadow-[var(--shadow-200)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
           >
-            <div className="min-w-0 flex-1 text-left">
+            <div className="flex min-w-0 flex-1 flex-col gap-1 text-left">
               <p className="text-b2-medium text-[var(--text-primary)]">내 별자리 운세 바로 보기</p>
               <p className="truncate text-caption text-[var(--text-secondary)]">
                 생일을 설정하고 오늘의 운세를 확인해보세요
@@ -101,12 +101,12 @@ export default function ZodiacBanner() {
         zodiacId={zodiac.id}
         href={`/fortune/${zodiac.id}`}
         ariaLabel={`내 별자리 운세 가기 - ${zodiac.korean} ${ZODIAC_PERIOD_LABELS[zodiac.id]}`}
-        className="flex w-full items-center gap-3 rounded-[var(--radius-lg)] bg-[var(--color-white)] px-4 py-3 shadow-[var(--shadow-100)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+        className="flex h-[68px] w-full items-center gap-4 rounded-[var(--radius-lg)] bg-[var(--color-white)] px-4 py-3 shadow-[var(--shadow-200)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
       >
-        <Avatar size={48}>
+        <Avatar size={40}>
           <ZodiacAsset zodiac={zodiac.id} alt="" />
         </Avatar>
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-b2-medium text-[var(--text-primary)]">내 별자리 운세 가기</p>
           <p className="truncate text-caption text-[var(--text-secondary)]">
             {zodiac.korean} · {ZODIAC_PERIOD_LABELS[zodiac.id]}

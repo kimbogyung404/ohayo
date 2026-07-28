@@ -85,13 +85,15 @@ function TopRankCard({
         {/* 프레임과 안 겹치는 안전 영역은 절대 위치의 top/bottom(%는 컨테이너 높이
             기준)·left/right(%는 너비 기준)로 잡는다 — 같은 값을 padding으로 주면
             top/bottom도 너비 기준으로 계산되는 CSS 스펙 때문에 프레임 하단 리본과
-            겹친다. top/bottom은 Figma "Exclude" 프레임의 안쪽 창(y 14~193 / 206)
-            실측치를 그대로 썼다. 별자리 이미지는 안전 영역 폭의 96.5%(Figma 실측
-            110/140px)까지 채우고, 이름·기간 텍스트 그룹과는 간격 없이 바로 붙는다
-            (Figma에서 이미지 하단=텍스트 그룹 시작 지점이 정확히 일치). 이름과
-            기간 사이는 4px, 기간 두 줄 사이는 2px로 Figma 실측치와 맞춘다. */}
-        <div className="absolute top-[6.8%] right-[9.3%] bottom-[6.3%] left-[9.3%] flex flex-col items-center justify-center text-center">
-          <div className="relative aspect-square w-[96.5%]">
+            겹친다. top/right/bottom/left는 Figma Home Screen(node 68:67)의 세이프
+            에어리어 실측치(4.85% / 10.71% / 12.14% / 10.71%, 140x206 카드 기준
+            10px/15px/25px/15px)를 그대로 썼다. 별자리 이미지는 안전 영역 폭 전체
+            (Figma 실측 110/140px)를 채우고, 안전 영역 상단에 붙어(justify-start)
+            이름·기간 텍스트 그룹과는 간격 없이 바로 이어진다(Figma에서 이미지
+            하단=텍스트 그룹 시작 지점이 정확히 일치). 이름과 기간 사이는 4px,
+            기간 두 줄 사이는 2px로 Figma 실측치와 맞춘다. */}
+        <div className="absolute top-[4.85%] right-[10.71%] bottom-[12.14%] left-[10.71%] flex flex-col items-center justify-start text-center">
+          <div className="relative aspect-square w-full">
             <ZodiacAsset zodiac={item.zodiacId} alt="" />
           </div>
           <div className="flex flex-col items-center gap-1">
@@ -122,8 +124,9 @@ export default async function HomePage() {
       {ranking.length === 0 ? (
         <>
           {readyDate && (
-            <p className="px-[var(--page-padding-x)] pt-4 text-center text-h1 text-[var(--text-primary)]">
-              {formatDateLabel(readyDate)} 별자리 운세 순위
+            <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+              <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
+              {' 별자리 운세 순위'}
             </p>
           )}
           <EmptyState
@@ -139,8 +142,9 @@ export default async function HomePage() {
               pb-4로 둔다(과거의 어두운 그라데이션 배경은 제거됨). ─── */}
           <div className="pb-4">
             {readyDate && (
-              <p className="px-[var(--page-padding-x)] pt-4 text-center text-h1 text-[var(--text-primary)]">
-                {formatDateLabel(readyDate)} 별자리 운세 순위
+              <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+                <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
+                {' 별자리 운세 순위'}
               </p>
             )}
 
