@@ -13,6 +13,10 @@ interface BottomSheetProps {
   // header를 쓸 때는 화면에 title 텍스트가 없으므로, 다이얼로그의 접근성 이름을
   // 이 값으로 별도 지정한다(넘기지 않으면 기존처럼 title을 그대로 쓴다).
   ariaLabel?: string;
+  // 상단 드래그 핸들(장식용 막대) 표시 여부. 기본 true(기존 동작 유지). 드래그로
+  // 닫는 기능은 구현되어 있지 않은 순수 장식 요소라, Figma에서 핸들이 없는 것으로
+  // 확정된 시트(예: 생일 날짜 선택)에서만 false로 넘긴다.
+  showHandle?: boolean;
   children: ReactNode;
 }
 
@@ -22,6 +26,7 @@ export default function BottomSheet({
   title,
   header,
   ariaLabel,
+  showHandle = true,
   children,
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -94,12 +99,14 @@ export default function BottomSheet({
         style={{ boxShadow: 'var(--shadow-overlay)', maxHeight: '90dvh' }}
       >
         {/* 핸들 */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div
-            className="w-9 h-1 rounded-full bg-[var(--gray-300)]"
-            aria-hidden="true"
-          />
-        </div>
+        {showHandle && (
+          <div className="flex justify-center pt-3 pb-1">
+            <div
+              className="w-9 h-1 rounded-full bg-[var(--gray-300)]"
+              aria-hidden="true"
+            />
+          </div>
+        )}
 
         {/* 헤더: 커스텀 헤더가 있으면 그것만, 없으면 기존 타이틀 */}
         {header ?? (title && (

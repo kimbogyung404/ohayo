@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import BottomSheet from '@/components/ui/BottomSheet';
-import Icon from '@/components/ui/Icon';
 import { daysInMonth } from '@/lib/birthday';
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -28,8 +27,9 @@ export default function DateGridBottomSheet({ isOpen, onClose, month, day, onCon
 
   const [draftDay, setDraftDay] = useState(day ?? 1);
 
-  // 열릴 때마다 현재 확정값(없으면 1일)에서 draft를 다시 시작한다 — X로 닫고 다시
-  // 열어도 이전 draft가 아니라 항상 확정 상태 기준으로 시작해야 한다. effect 대신
+  // 열릴 때마다 현재 확정값(없으면 1일)에서 draft를 다시 시작한다 — backdrop 클릭이나
+  // Escape로 닫고 다시 열어도 이전 draft가 아니라 항상 확정 상태 기준으로 시작해야
+  // 한다. effect 대신
   // 렌더 중 이전 isOpen과 비교해 조정한다(React 공식 "prop 변경 시 state 조정"
   // 패턴 — useEffect 안의 setState는 react-hooks/set-state-in-effect 린트 에러가 남).
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -51,22 +51,20 @@ export default function DateGridBottomSheet({ isOpen, onClose, month, day, onCon
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      ariaLabel="일 선택"
+      ariaLabel="날짜 선택"
+      showHandle={false}
       header={
-        <div className="flex items-center justify-between px-3 pt-2 pb-1">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="일 선택 닫기"
-            className="relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
-          >
-            <span aria-hidden="true" className="absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
-            <Icon name="x" size={20} aria-hidden="true" />
-          </button>
+        // Figma 86:5 최신 Header(node 87:5) 실측 기준: 좌측 X 아이콘 없이 제목(좌)
+        // + 확인(우) 2열 space-between 구조. 취소는 여전히 backdrop 클릭·Escape로만
+        // 가능하다(BottomSheet.tsx의 기존 onClose 연결, 여기서는 헤더에 별도 닫기
+        // 버튼만 두지 않는다). 확인 버튼은 Figma 실측(16px medium)에 맞춰
+        // text-b2-medium을 쓴다(제목은 18px bold인 text-b1-semibold 그대로 유지).
+        <div className="flex items-center justify-between px-[var(--page-padding-x)] py-5">
+          <h2 className="text-b1-semibold text-[var(--text-primary)]">날짜 선택</h2>
           <button
             type="button"
             onClick={handleConfirm}
-            className="rounded px-2 py-2 text-b1-semibold text-[var(--text-brand)] transition-colors hover:text-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+            className="rounded px-2 py-2 text-b2-medium text-[var(--text-brand)] transition-colors hover:text-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
           >
             확인
           </button>
@@ -86,7 +84,7 @@ export default function DateGridBottomSheet({ isOpen, onClose, month, day, onCon
         {/* 날짜 그리드 — 1일부터 순서대로, 남는 칸은 마지막 행 뒤쪽에만 */}
         <div
           role="listbox"
-          aria-label="일 선택"
+          aria-label="날짜 선택"
           className="mt-1 grid gap-1"
           style={{ gridTemplateColumns: `repeat(${COLUMNS}, minmax(0, 1fr))` }}
         >

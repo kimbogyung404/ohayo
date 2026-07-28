@@ -31,12 +31,18 @@ interface BirthdaySelectStepProps {
 function FieldButton({
   label,
   filled,
+  active,
   expanded,
   hasPopup,
   onClick,
 }: {
   label: string;
+  // 값이 실제로 채워졌는지(배경·글자색 결정 — "완료" 톤).
   filled: boolean;
+  // 이 필드의 Bottom Sheet가 지금 열려 있는지(테두리 색 결정 — "활성" 표시). 값이
+  // 채워져 있어도 다른 필드의 시트가 열려 있으면 false가 되어 기본 테두리로
+  // 돌아간다 — 두 필드 중 지금 조작 중인 쪽에만 brand 테두리가 있어야 하기 때문.
+  active: boolean;
   expanded: boolean;
   hasPopup: 'listbox' | 'dialog';
   onClick: () => void;
@@ -50,9 +56,8 @@ function FieldButton({
       className={[
         'flex h-[var(--input-height)] flex-1 items-center justify-between rounded-[var(--radius-md)] border-[1.5px] px-4 text-b2-medium transition-colors',
         'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]',
-        filled
-          ? 'border-[var(--border-brand)] bg-[var(--surface-brand)] text-[var(--text-primary)]'
-          : 'border-[var(--border-default)] bg-[var(--color-white)] text-[var(--text-tertiary)]',
+        active ? 'border-[var(--border-brand)]' : 'border-[var(--border-default)]',
+        filled ? 'bg-[var(--surface-brand)] text-[var(--text-primary)]' : 'bg-[var(--color-white)] text-[var(--text-tertiary)]',
       ].join(' ')}
     >
       <span>{label}</span>
@@ -87,6 +92,15 @@ export default function BirthdaySelectStep({
   const handleConfirmDay = (newDay: number) => setDay(newDay);
 
   const isComplete = month !== null && day !== null;
+
+  // 필드 테두리(active)는 "지금 열려 있는 시트가 어느 필드 것인지"를 최우선으로
+  // 따른다 — 예: 일 선택 시트가 열려 있으면 월이 이미 채워져 있어도 월 필드는
+  // 기본 테두리로, 일 필드만 brand 테두리로 보여야 한다(Figma 86:5 기준). 어떤
+  // 시트도 열려 있지 않을 때만 기존처럼 값이 채워졌는지로 되돌아간다.
+  const monthFilled = month !== null;
+  const dayFilled = day !== null;
+  const monthActive = openField ? openField === 'month' : monthFilled;
+  const dayActive = openField ? openField === 'day' : dayFilled;
 
   const handleConfirm = () => {
     if (!isComplete || isSubmitting) return;
@@ -134,14 +148,16 @@ export default function BirthdaySelectStep({
           <div className="flex gap-3">
             <FieldButton
               label={month !== null ? `${month}월` : '월'}
-              filled={month !== null}
+              filled={monthFilled}
+              active={monthActive}
               expanded={openField === 'month'}
               hasPopup="listbox"
               onClick={() => setOpenField('month')}
             />
             <FieldButton
               label={day !== null ? `${day}일` : '일'}
-              filled={day !== null}
+              filled={dayFilled}
+              active={dayActive}
               expanded={openField === 'day'}
               hasPopup="dialog"
               onClick={() => setOpenField('day')}
