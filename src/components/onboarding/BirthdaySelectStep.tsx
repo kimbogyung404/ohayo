@@ -14,9 +14,18 @@ type OpenField = 'month' | 'day' | null;
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `${i + 1}월` }));
 
 interface BirthdaySelectStepProps {
-  // 저장·온보딩 완료 처리가 모두 끝난 뒤 호출된다(OnboardingScreen이 화면을 닫고
-  // 홈으로 이동시키는 책임을 진다 — 이 컴포넌트는 저장 여부만 책임진다).
+  // 저장·온보딩 완료 처리가 모두 끝난 뒤 호출된다(호출자가 화면을 닫고 다음 화면으로
+  // 이동시키는 책임을 진다 — 이 컴포넌트는 저장 여부만 책임진다).
   onComplete: () => void;
+  // 온보딩 흐름 밖(예: 홈의 Empty State 배너)에서 단독으로 열렸을 때만 넘긴다.
+  // 넘기면 좌상단에 닫기 버튼이 생기고, 아무것도 저장하지 않은 채 호출자가 화면을
+  // 닫을 수 있게 한다. 온보딩 흐름에서는 취소가 없으므로 넘기지 않는다.
+  onCancel?: () => void;
+  // 온보딩 흐름(OnboardingScreen)에서 열렸을 때만 true(기본값) — 확인 시
+  // ONBOARDING_STORAGE_KEY를 저장한다. 이미 온보딩을 완료한 기존 사용자가 홈의
+  // Empty State 배너를 통해 생일만 나중에 채우는 경우에는 false로 넘겨, 이미 있는
+  // 온보딩 완료 상태를 불필요하게 다시 쓰지 않는다.
+  markOnboardingComplete?: boolean;
 }
 
 function FieldButton({
@@ -57,7 +66,11 @@ function FieldButton({
 // Sheet, 색상·타이포·라운드 토큰)만으로 구성했다. 월은 기존 버튼 그리드 Bottom
 // Sheet(OptionGridBottomSheet, 클릭 즉시 적용+닫힘)를, 일은 캘린더형 7열 날짜
 // 그리드(DateGridBottomSheet, draft로 고르고 "확인"을 눌러야 반영)를 쓴다.
-export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepProps) {
+export default function BirthdaySelectStep({
+  onComplete,
+  onCancel,
+  markOnboardingComplete = true,
+}: BirthdaySelectStepProps) {
   const [month, setMonth] = useState<number | null>(null);
   const [day, setDay] = useState<number | null>(null);
   const [openField, setOpenField] = useState<OpenField>(null);
@@ -82,10 +95,12 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
 
     setIsSubmitting(true);
     saveBirthday(month, day);
-    try {
-      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
-    } catch {
-      // 저장 실패해도 이번 진입은 그대로 홈으로 넘어간다(다음 방문에 온보딩이 다시 노출될 수 있음).
+    if (markOnboardingComplete) {
+      try {
+        window.localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
+      } catch {
+        // 저장 실패해도 이번 진입은 그대로 홈으로 넘어간다(다음 방문에 온보딩이 다시 노출될 수 있음).
+      }
     }
     onComplete();
   };
@@ -93,9 +108,22 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
   return (
     <>
       <div className="onboarding-content-pad flex flex-1 flex-col overflow-y-auto">
+        {onCancel && (
+          <div className="shrink-0 px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}>
+            <button
+              type="button"
+              onClick={onCancel}
+              aria-label="생일 선택 닫기"
+              className="relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+            >
+              <span aria-hidden="true" className="absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2" />
+              <Icon name="x" size={20} aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <div
           className="shrink-0 px-[var(--page-padding-x)] text-left"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 32px)' }}
+          style={{ paddingTop: `calc(env(safe-area-inset-top) + ${onCancel ? 16 : 32}px)` }}
         >
           <p className="text-h1 text-[var(--text-primary)]" style={{ fontWeight: 700 }}>
             생일을 선택해주세요
