@@ -29,6 +29,12 @@ export default function ServiceGuidePage() {
           <DocSection title="이용 목적 안내">
             <p>운세 콘텐츠는 재미와 가벼운 참고를 위한 것이며, 중요한 의사결정의 근거로 사용하지 마시기 바랍니다.</p>
           </DocSection>
+
+          <DocSection title="생일 및 저장 정보 안내">
+            <p>생일의 월·일은 별자리 표시를 위해 현재 브라우저에 저장됩니다.</p>
+            <p>로그인하면 저장한 일본어 단어를 계정과 연결해 보관합니다.</p>
+            <p>브라우저 데이터를 삭제하거나 다른 기기·브라우저를 사용하면 생일 설정이 유지되지 않을 수 있습니다.</p>
+          </DocSection>
         </div>
       </div>
     </div>
