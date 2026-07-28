@@ -5,8 +5,9 @@ import Button from '@/components/ui/Button';
 import StickyActionBar from '@/components/ui/StickyActionBar';
 import Icon from '@/components/ui/Icon';
 import OptionGridBottomSheet from '@/components/onboarding/OptionGridBottomSheet';
+import DateGridBottomSheet from '@/components/onboarding/DateGridBottomSheet';
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
-import { daysInMonth, clampDayToMonth, isValidBirthday, getZodiacByBirthday, saveBirthday } from '@/lib/birthday';
+import { clampDayToMonth, isValidBirthday, getZodiacByBirthday, saveBirthday } from '@/lib/birthday';
 
 type OpenField = 'month' | 'day' | null;
 
@@ -22,18 +23,20 @@ function FieldButton({
   label,
   filled,
   expanded,
+  hasPopup,
   onClick,
 }: {
   label: string;
   filled: boolean;
   expanded: boolean;
+  hasPopup: 'listbox' | 'dialog';
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-haspopup="listbox"
+      aria-haspopup={hasPopup}
       aria-expanded={expanded}
       className={[
         'flex h-[var(--input-height)] flex-1 items-center justify-between rounded-[var(--radius-md)] border-[1.5px] px-4 text-b2-medium transition-colors',
@@ -51,7 +54,9 @@ function FieldButton({
 
 // 온보딩 두 번째 단계: 생일(월·일만)을 선택하고 확인을 누르면 저장 → 온보딩 완료 →
 // 홈 이동까지 처리한다. 별도 Figma 디자인이 없어 기존 디자인 시스템(Button, Bottom
-// Sheet, 색상·타이포·라운드 토큰)만으로 구성했다.
+// Sheet, 색상·타이포·라운드 토큰)만으로 구성했다. 월은 기존 버튼 그리드 Bottom
+// Sheet(OptionGridBottomSheet, 클릭 즉시 적용+닫힘)를, 일은 캘린더형 7열 날짜
+// 그리드(DateGridBottomSheet, draft로 고르고 "확인"을 눌러야 반영)를 쓴다.
 export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepProps) {
   const [month, setMonth] = useState<number | null>(null);
   const [day, setDay] = useState<number | null>(null);
@@ -66,7 +71,7 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
     setDay((prevDay) => (prevDay !== null ? clampDayToMonth(prevDay, newMonth) : prevDay));
   };
 
-  const handleSelectDay = (newDay: number) => setDay(newDay);
+  const handleConfirmDay = (newDay: number) => setDay(newDay);
 
   const isComplete = month !== null && day !== null;
 
@@ -84,9 +89,6 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
     }
     onComplete();
   };
-
-  const dayCount = month !== null ? daysInMonth(month) : 31;
-  const dayOptions = Array.from({ length: dayCount }, (_, i) => ({ value: i + 1, label: `${i + 1}일` }));
 
   return (
     <>
@@ -106,12 +108,14 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
               label={month !== null ? `${month}월` : '월'}
               filled={month !== null}
               expanded={openField === 'month'}
+              hasPopup="listbox"
               onClick={() => setOpenField('month')}
             />
             <FieldButton
               label={day !== null ? `${day}일` : '일'}
               filled={day !== null}
               expanded={openField === 'day'}
+              hasPopup="dialog"
               onClick={() => setOpenField('day')}
             />
           </div>
@@ -139,14 +143,12 @@ export default function BirthdaySelectStep({ onComplete }: BirthdaySelectStepPro
         onSelect={handleSelectMonth}
         columns={4}
       />
-      <OptionGridBottomSheet
+      <DateGridBottomSheet
         isOpen={openField === 'day'}
         onClose={() => setOpenField(null)}
-        title="일 선택"
-        options={dayOptions}
-        selectedValue={day}
-        onSelect={handleSelectDay}
-        columns={5}
+        month={month}
+        day={day}
+        onConfirm={handleConfirmDay}
       />
     </>
   );

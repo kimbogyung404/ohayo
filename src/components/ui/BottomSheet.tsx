@@ -7,6 +7,12 @@ interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  // 기본 핸들+타이틀 대신 커스텀 헤더(예: 생일 날짜 그리드의 X/확인 헤더)를 쓰고
+  // 싶을 때만 넘긴다. 넘기면 title은 무시되고 이 노드가 핸들 아래 그대로 렌더된다.
+  header?: ReactNode;
+  // header를 쓸 때는 화면에 title 텍스트가 없으므로, 다이얼로그의 접근성 이름을
+  // 이 값으로 별도 지정한다(넘기지 않으면 기존처럼 title을 그대로 쓴다).
+  ariaLabel?: string;
   children: ReactNode;
 }
 
@@ -14,6 +20,8 @@ export default function BottomSheet({
   isOpen,
   onClose,
   title,
+  header,
+  ariaLabel,
   children,
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -70,7 +78,7 @@ export default function BottomSheet({
       onClick={handleOverlayClick}
       aria-modal="true"
       role="dialog"
-      aria-label={title}
+      aria-label={ariaLabel ?? title}
       style={{ maxWidth: 'var(--max-width-app)', margin: '0 auto' }}
     >
       {/* 오버레이 */}
@@ -93,12 +101,12 @@ export default function BottomSheet({
           />
         </div>
 
-        {/* 타이틀 */}
-        {title && (
+        {/* 헤더: 커스텀 헤더가 있으면 그것만, 없으면 기존 타이틀 */}
+        {header ?? (title && (
           <div className="px-5 pt-2 pb-1">
             <h2 className="text-h2 text-[var(--text-primary)]">{title}</h2>
           </div>
-        )}
+        ))}
 
         {/* 콘텐츠 */}
         <div className="overflow-y-auto" style={{ maxHeight: 'calc(90dvh - 48px)' }}>
