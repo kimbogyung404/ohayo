@@ -118,7 +118,7 @@ export default async function HomePage() {
 
   return (
     <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
-      <AuthTopNav />
+      <AuthTopNav showFeedbackButton />
       <ZodiacBanner />
 
       {ranking.length === 0 ? (

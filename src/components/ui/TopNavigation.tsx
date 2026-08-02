@@ -6,8 +6,20 @@ import Icon from './Icon';
 import Logo from './Logo';
 
 type TopNavigationProps =
-  | { variant: 'guest'; onLoginClick?: MouseEventHandler<HTMLButtonElement>; className?: string }
-  | { variant: 'authenticated'; onProfileClick?: MouseEventHandler<HTMLButtonElement>; className?: string }
+  | {
+      variant: 'guest';
+      onLoginClick?: MouseEventHandler<HTMLButtonElement>;
+      // 넘기면 로그인 버튼 왼쪽에 "의견 보내기" 버튼을 추가로 노출한다(현재 홈 화면만
+      // 사용). 넘기지 않으면 기존과 동일하게 렌더링된다.
+      onFeedbackClick?: () => void;
+      className?: string;
+    }
+  | {
+      variant: 'authenticated';
+      onProfileClick?: MouseEventHandler<HTMLButtonElement>;
+      onFeedbackClick?: () => void;
+      className?: string;
+    }
   | {
       variant: 'detail';
       title: string;
@@ -34,18 +46,24 @@ export default function TopNavigation(props: TopNavigationProps) {
         {variant === 'guest' && (
           <div className="flex w-full items-center justify-between">
             <Logo className="w-[110px] h-auto" />
-            <Button hierarchy="primary" size="small" onClick={props.onLoginClick}>
-              로그인
-            </Button>
+            <div className="flex items-center gap-1">
+              {props.onFeedbackClick && <FeedbackTriggerButton onClick={props.onFeedbackClick} />}
+              <Button hierarchy="primary" size="small" onClick={props.onLoginClick}>
+                로그인
+              </Button>
+            </div>
           </div>
         )}
 
         {variant === 'authenticated' && (
           <div className="flex w-full items-center justify-between">
             <Logo className="w-[110px] h-auto" />
-            <button type="button" onClick={props.onProfileClick} aria-label="프로필 열기">
-              <Icon name="user" size={32} />
-            </button>
+            <div className="flex items-center gap-1">
+              {props.onFeedbackClick && <FeedbackTriggerButton onClick={props.onFeedbackClick} />}
+              <button type="button" onClick={props.onProfileClick} aria-label="프로필 열기">
+                <Icon name="user" size={32} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -74,5 +92,21 @@ export default function TopNavigation(props: TopNavigationProps) {
         )}
       </div>
     </header>
+  );
+}
+
+// 로그인 여부와 무관하게 홈 화면 프로필/로그인 버튼 왼쪽에 노출되는 텍스트형 버튼.
+// 저장된 단어 화면의 "단어 삭제" 진입 버튼과 같은 배경 없는 텍스트 스타일을 그대로
+// 재사용해, primary CTA로 보이지 않게 한다. min-h-11(44px)로 로고·프로필 정렬은
+// 그대로 두고 터치 영역만 확보한다.
+function FeedbackTriggerButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full px-3 text-b2-medium text-[var(--text-brand)] transition-colors hover:text-[var(--brand-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
+    >
+      의견 보내기
+    </button>
   );
 }
