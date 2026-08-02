@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     ok: result.ok,
     skipped: result.skipped,
     skipReason: result.skipReason,
+    sourceType: result.sourceType,
     count: result.count,
     errorReason: result.errorReason,
   });

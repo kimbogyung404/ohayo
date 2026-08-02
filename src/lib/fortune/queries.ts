@@ -78,6 +78,15 @@ export async function getLatestReadyDate(supabase: SupabaseClient): Promise<stri
   return null;
 }
 
+// 이 날짜의 운세 12개가 전부 존재하고 AI 처리(ai_status='success')까지 완료됐는지
+// 확인한다. 홈 화면은 "가장 최신 완료 날짜"가 아니라 항상 "오늘 KST 날짜"가 준비됐는지만
+// 확인한다 — 오늘 데이터가 없다고 예전 날짜(예: 어제) 데이터를 대신 보여주지 않는다.
+export async function isDateReady(supabase: SupabaseClient, date: string): Promise<boolean> {
+  const { data, error } = await supabase.from('fortunes').select('ai_status').eq('date', date);
+  if (error || !data) return false;
+  return data.length === 12 && data.every((row) => row.ai_status === 'success');
+}
+
 export async function getRankingForDate(
   supabase: SupabaseClient,
   date: string

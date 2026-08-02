@@ -172,3 +172,96 @@ export function validateHoroscopeResponse(json: unknown): ValidationResult {
 
   return { ok: true, data: { date: isoDate, entries } };
 }
+
+// ─────────────────────────────────────────────────────────────
+// AI 대체 운세(ai_fallback) 응답 검증. 공식 응답(RawHoroscopeResponseSchema)과 달리
+// horoscope_st 코드나 탭 구분 텍스트가 없다 — Gemini가 zodiacId/rank/originalText/
+// luckyItem을 직접 필드로 반환한다. 검증 통과 시 공식 경로와 동일한
+// ValidatedFortuneEntry[] 형태로 반환해, 이후 파이프라인(collectService/
+// generateService)이 출처를 구분할 필요 없이 그대로 재사용할 수 있게 한다.
+// ─────────────────────────────────────────────────────────────
+
+const FallbackEntrySchema = z.object({
+  zodiacId: z.enum([
+    'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo',
+    'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces',
+  ]),
+  rank: z.number(),
+  originalText: z.string(),
+  luckyItem: z.string(),
+});
+
+const RawFallbackResponseSchema = z.object({
+  entries: z.array(FallbackEntrySchema),
+});
+
+export function validateFallbackHoroscope(json: unknown, targetDate: string): ValidationResult {
+  const parsed = RawFallbackResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    return { ok: false, reason: `fallback schema validation failed: ${parsed.error.message}` };
+  }
+
+  const { entries: rawEntries } = parsed.data;
+
+  if (rawEntries.length !== 12) {
+    return { ok: false, reason: `expected 12 fallback entries, got ${rawEntries.length}` };
+  }
+
+  const seenZodiacIds = new Set<ZodiacId>();
+  const seenRanks = new Set<number>();
+  const seenOriginalTexts = new Set<string>();
+  const entries: ValidatedFortuneEntry[] = [];
+
+  for (const raw of rawEntries) {
+    const zodiacId = raw.zodiacId as ZodiacId;
+
+    if (seenZodiacIds.has(zodiacId)) {
+      return { ok: false, reason: `duplicate zodiac detected in fallback: ${zodiacId}` };
+    }
+    seenZodiacIds.add(zodiacId);
+
+    if (!Number.isInteger(raw.rank) || raw.rank < 1 || raw.rank > 12) {
+      return { ok: false, reason: `invalid fallback rank: ${raw.rank}` };
+    }
+    if (seenRanks.has(raw.rank)) {
+      return { ok: false, reason: `duplicate fallback rank detected: ${raw.rank}` };
+    }
+    seenRanks.add(raw.rank);
+
+    const originalText = raw.originalText.trim();
+    const luckyItem = raw.luckyItem.trim();
+
+    if (!originalText || !luckyItem) {
+      return { ok: false, reason: `empty fallback original text or lucky item (zodiac ${zodiacId})` };
+    }
+
+    // 12개 별자리 내용이 서로 겹치지 않아야 한다는 요구를 구조적으로도 강제한다
+    // (프롬프트 지시만으로는 완전히 보장되지 않으므로 방어적으로 재확인).
+    if (seenOriginalTexts.has(originalText)) {
+      return { ok: false, reason: `duplicate fallback original text detected (zodiac ${zodiacId})` };
+    }
+    seenOriginalTexts.add(originalText);
+
+    const zodiacInfo = getZodiac(zodiacId);
+    if (!zodiacInfo) {
+      return { ok: false, reason: `zodiac info not found for id: ${zodiacId}` };
+    }
+
+    entries.push({
+      zodiacId,
+      zodiacJapanese: zodiacInfo.japanese,
+      zodiacKorean: zodiacInfo.korean,
+      rank: raw.rank,
+      originalText,
+      luckyItem,
+    });
+  }
+
+  if (seenZodiacIds.size !== 12 || seenRanks.size !== 12) {
+    return { ok: false, reason: 'fallback zodiac or rank set incomplete after processing' };
+  }
+
+  entries.sort((a, b) => a.rank - b.rank);
+
+  return { ok: true, data: { date: targetDate, entries } };
+}

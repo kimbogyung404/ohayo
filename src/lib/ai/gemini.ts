@@ -1,5 +1,6 @@
 import 'server-only';
 import { GoogleGenAI } from '@google/genai';
+import { ZODIACS } from '@/lib/zodiac';
 
 // 공식 SDK(@google/genai) 사용. gemini-2.0 계열은 이미 종료(shut down)되어 사용하지 않는다.
 const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
@@ -505,6 +506,103 @@ export async function generateKoreanSegmentBackfill(
         temperature: 0.1,
         responseMimeType: 'application/json',
         responseSchema: BACKFILL_RESPONSE_SCHEMA,
+      },
+    });
+
+    const text = response.text;
+    if (!text) {
+      return { ok: false, errorMessage: 'empty response from Gemini' };
+    }
+
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return { ok: false, errorMessage: 'failed to parse Gemini response as JSON' };
+    }
+
+    return { ok: true, json };
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 200) : 'unknown error';
+    return { ok: false, errorMessage: `Gemini request failed: ${message}` };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI 대체 운세(ai_fallback): 공식 오하아사 데이터가 해당 날짜에 없을 때(수집 실패,
+// 아직 게시되지 않음, 일요일 등) 12개 별자리 운세를 통째로 새로 만든다. 공식 원문의
+// 대체품일 뿐 공식 데이터가 아니므로, 호출부(collectService.ts)가 source_type=
+// 'ai_fallback'으로 저장하고 공식 URL을 붙이지 않는다. 여기서 만든 originalText/
+// luckyItem은 이후 generateService.ts의 기존 M5 파이프라인(번역·세부 운세·단어 생성)에
+// 그대로 입력되어 재사용된다 — 번역/단어 생성 로직을 별도로 새로 만들지 않는다.
+// ─────────────────────────────────────────────────────────────
+
+const FALLBACK_HOROSCOPE_SCHEMA = {
+  type: 'object',
+  properties: {
+    entries: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          zodiacId: { type: 'string', enum: ZODIACS.map((z) => z.id) },
+          rank: { type: 'integer' },
+          originalText: { type: 'string' },
+          luckyItem: { type: 'string' },
+        },
+        required: ['zodiacId', 'rank', 'originalText', 'luckyItem'],
+      },
+    },
+  },
+  required: ['entries'],
+} as const;
+
+function buildFallbackHoroscopePrompt(dateStr: string): string {
+  const zodiacList = ZODIACS.map((z) => `- ${z.id} (${z.japanese})`).join('\n');
+
+  return `당신은 한국인 일본어 초급 학습자(JLPT N4~N3 수준)를 위한 일본어 별자리 운세
+코너를 새로 작성하는 방송 작가입니다. 오늘(${dateStr})은 공식 방송사의 운세 데이터가
+없는 날이라, 같은 형식의 대체 운세 12개(별자리 전체)를 처음부터 새로 창작해야 합니다.
+
+아래 12개 별자리 각각에 대해 순위(rank, 1~12, 중복 없이 전부 사용)와 오늘의 운세를
+새로 작성하세요.
+
+${zodiacList}
+
+각 별자리마다 다음을 작성하세요.
+- originalText: 오늘의 운세를 짧고 자연스러운 일본어로 1~2문장 작성(JLPT N4~N3
+  학습자가 읽을 수 있는 쉬운 문법과 어휘만 사용).
+- luckyItem: 오늘의 행운 장소 또는 아이템을 일본어 명사 하나로 작성.
+
+반드시 지켜야 할 규칙:
+1. 12개 별자리의 운세 내용이 서로 겹치지 않게, 각자 다른 소재와 표현으로 작성하세요.
+2. 병(질병), 죽음, 사고, 범죄를 예언하거나 암시하지 마세요. 과도하게 불안하거나
+   위협적인 표현을 쓰지 마세요. 전체적으로 밝고 건설적인 톤을 유지하되, 12개 모두
+   똑같이 긍정적이지 않아도 됩니다(가벼운 주의 정도는 괜찮습니다).
+3. 투자, 의료, 법률과 관련된 구체적인 결정을 유도하거나 권하지 마세요(예: 특정
+   주식·병원·소송 행동을 권유하는 문장 금지).
+4. 실존 인물, 실제 사건, 특정 브랜드명을 언급하지 마세요.
+5. rank는 1부터 12까지 각 별자리에 정확히 한 번씩만 배정하세요(중복·누락 금지).
+6. 이전에 사용한 운세를 복사하거나 날짜만 바꾸지 말고 매번 새로 작성하세요.
+
+지정된 JSON 구조 이외의 설명은 출력하지 마세요.`;
+}
+
+export async function generateFallbackHoroscope(dateStr: string): Promise<GeminiCallResult> {
+  try {
+    const ai = getClient();
+    const model = getModelName();
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: buildFallbackHoroscopePrompt(dateStr),
+      config: {
+        // 12개가 서로 겹치지 않는 다양한 소재를 만들어야 하므로 detailFortunes 생성과
+        // 비슷하게 다소 높은 temperature를 쓴다. 안전·중복 규칙은 프롬프트 지시와
+        // 구조적 검증(validateFallbackHoroscope)으로 강제한다.
+        temperature: 0.7,
+        responseMimeType: 'application/json',
+        responseSchema: FALLBACK_HOROSCOPE_SCHEMA,
       },
     });
 
