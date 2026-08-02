@@ -29,7 +29,10 @@ export async function GET(request: Request) {
   const todayKst = getKstDateString();
 
   const collectStartedAt = Date.now();
-  const collectResult = await runDailyCollect(supabase, todayKst);
+  // 날짜를 고정해서 넘기지 않는다 — "오늘 날짜와 정확히 일치"가 아니라 "이미 저장된
+  // 최신 날짜보다 새 날짜인가"로 판단해야 주말·공휴일에 소스가 늦게 갱신돼도 다음
+  // 실행에서 자동으로 따라잡는다(collectService.ts의 runDailyCollect 주석 참고).
+  const collectResult = await runDailyCollect(supabase);
   const collectDurationMs = Date.now() - collectStartedAt;
 
   console.log('[cron/daily] collect', {

@@ -110,6 +110,13 @@ export function validateHoroscopeResponse(json: unknown): ValidationResult {
     return { ok: false, reason: `invalid onair_date: ${entry.onair_date}` };
   }
 
+  // 오하아사(평일)·오하아사 토요일판 모두 일요일에는 방송이 없다 — onair_date가 일요일이면
+  // 사이트 응답 이상(파싱 오류 등)으로 보고 거부한다. 실제로는 발생 시 collectService의
+  // "이미 저장된 최신 날짜보다 최신인가" 검사에서도 걸러지지만, 여기서 한 번 더 방어한다.
+  if (new Date(`${isoDate}T00:00:00Z`).getUTCDay() === 0) {
+    return { ok: false, reason: `onair_date falls on a Sunday, which this show never broadcasts: ${isoDate}` };
+  }
+
   if (entry.detail.length !== 12) {
     return { ok: false, reason: `expected 12 detail entries, got ${entry.detail.length}` };
   }

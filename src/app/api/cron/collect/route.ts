@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient();
   const result = dateParam
-    ? await runDailyCollect(supabase, dateParam)
+    ? await runDailyCollect(supabase, { date: dateParam })
     : await runDailyCollect(supabase);
 
   console.log('[cron/collect]', {
