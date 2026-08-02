@@ -7,7 +7,17 @@ import OnboardingScreen from '@/components/common/OnboardingScreen';
 import PageViewTracker from '@/components/common/PageViewTracker';
 import { SPLASH_INIT_SCRIPT } from '@/lib/splash';
 
+// 공개 프로덕션 도메인. Vercel이 주입하는 VERCEL_PROJECT_PRODUCTION_URL에 의존하면
+// 계정/브랜치에 따라 달라질 수 있어, og:image·twitter:image origin을 고정하기 위해
+// 공개 서비스 주소를 직접 명시한다.
+const PRODUCTION_SITE_URL = 'https://ohayo-gamma.vercel.app';
+
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.NODE_ENV === 'production' ? PRODUCTION_SITE_URL : 'http://localhost:3000');
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: 'OHAYO! | 오늘의 별자리 운세로 일본어 학습',
   description:
     '일본식 별자리 운세를 읽으면서 일본어 단어를 자연스럽게 학습하고 저장할 수 있는 모바일 웹 서비스입니다.',

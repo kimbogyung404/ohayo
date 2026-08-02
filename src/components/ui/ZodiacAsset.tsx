@@ -18,6 +18,9 @@ interface ZodiacAssetProps {
   zodiac: ZodiacAssetName;
   alt: string;
   className?: string;
+  // 이 이미지는 항상 fill이라 렌더 크기를 CSS(부모 컨테이너)가 결정한다. Next.js가
+  // 적절한 소스 해상도를 고르도록, 호출부의 실제 컨테이너 픽셀 크기를 넘긴다.
+  sizes?: string;
 }
 
 interface ZodiacAssetCorrection {
@@ -42,7 +45,7 @@ const ZODIAC_ASSET_CORRECTIONS: Record<ZodiacAssetName, ZodiacAssetCorrection> =
   pisces: {},
 };
 
-export default function ZodiacAsset({ zodiac, alt, className = '' }: ZodiacAssetProps) {
+export default function ZodiacAsset({ zodiac, alt, className = '', sizes = '100px' }: ZodiacAssetProps) {
   const { scale = 1, translateX = 0, translateY = 0, mirror = false } = ZODIAC_ASSET_CORRECTIONS[zodiac];
 
   const transforms = [
@@ -58,6 +61,7 @@ export default function ZodiacAsset({ zodiac, alt, className = '' }: ZodiacAsset
       src={`/images/zodiac/${zodiac}.png`}
       alt={alt}
       fill
+      sizes={sizes}
       draggable={false}
       className={[
         'pointer-events-none select-none [-webkit-user-drag:none] object-contain',

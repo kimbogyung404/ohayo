@@ -94,7 +94,7 @@ function TopRankCard({
             기간 두 줄 사이는 2px로 Figma 실측치와 맞춘다. */}
         <div className="absolute top-[4.85%] right-[10.71%] bottom-[12.14%] left-[10.71%] flex flex-col items-center justify-start text-center">
           <div className="relative aspect-square w-full">
-            <ZodiacAsset zodiac={item.zodiacId} alt="" />
+            <ZodiacAsset zodiac={item.zodiacId} alt="" sizes="110px" />
           </div>
           <div className="flex flex-col items-center gap-1">
             <span className={`text-b2-medium ${nameColor}`}>{item.zodiacKorean}</span>
@@ -124,10 +124,10 @@ export default async function HomePage() {
       {ranking.length === 0 ? (
         <>
           {readyDate && (
-            <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+            <h1 className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
               <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
               {' 별자리 운세 순위'}
-            </p>
+            </h1>
           )}
           <EmptyState
             icon="🌅"
@@ -142,10 +142,10 @@ export default async function HomePage() {
               pb-4로 둔다(과거의 어두운 그라데이션 배경은 제거됨). ─── */}
           <div className="pb-4">
             {readyDate && (
-              <p className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
+              <h1 className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
                 <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
                 {' 별자리 운세 순위'}
-              </p>
+              </h1>
             )}
 
             {/* ─── 상위 3개 별자리 ─── */}
@@ -171,7 +171,7 @@ export default async function HomePage() {
                     <FortuneListItem
                       avatar={
                         <Avatar size={40}>
-                          <ZodiacAsset zodiac={item.zodiacId} alt="" />
+                          <ZodiacAsset zodiac={item.zodiacId} alt="" sizes="40px" />
                         </Avatar>
                       }
                       title={item.zodiacKorean}

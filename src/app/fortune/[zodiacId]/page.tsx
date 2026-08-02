@@ -648,7 +648,7 @@ export default function FortuneDetailPage() {
           </div>
         )}
         <div className="relative h-[200px] w-[200px]">
-          <ZodiacAsset zodiac={zodiacId} alt="" />
+          <ZodiacAsset zodiac={zodiacId} alt="" sizes="200px" />
         </div>
       </div>
 

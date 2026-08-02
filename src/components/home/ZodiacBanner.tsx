@@ -104,7 +104,7 @@ export default function ZodiacBanner() {
         className="flex h-[68px] w-full items-center gap-4 rounded-[var(--radius-lg)] bg-[var(--color-white)] px-4 py-3 shadow-[var(--shadow-200)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--brand-focus)]"
       >
         <Avatar size={40}>
-          <ZodiacAsset zodiac={zodiac.id} alt="" />
+          <ZodiacAsset zodiac={zodiac.id} alt="" sizes="40px" />
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-b2-medium text-[var(--text-primary)]">내 별자리 운세 가기</p>

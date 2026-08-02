@@ -125,7 +125,7 @@ export default function OnboardingScreen() {
                   className="onboarding-marquee-item relative h-20 w-20 shrink-0"
                   style={bounceStyle}
                 >
-                  <Image src={`/images/zodiac/${zodiac.id}.png`} alt="" fill className="object-contain" />
+                  <Image src={`/images/zodiac/${zodiac.id}.png`} alt="" fill sizes="80px" className="object-contain" />
                 </div>
               );
             })}
