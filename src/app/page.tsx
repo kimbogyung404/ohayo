@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
+import { getKstDateString } from '@/lib/date/kst';
 import { getLatestReadyDate, getRankingForDate } from '@/lib/fortune/queries';
 import EmptyState from '@/components/common/EmptyState';
 import BottomNavigation from '@/components/ui/BottomNavigation';
@@ -33,6 +34,60 @@ const CARD_BACKGROUND_SRC: Record<1 | 2 | 3, string> = {
 // date 컬럼이 그대로 내려온 "YYYY-MM-DD" 문자열이라 별도 파싱 없이 포맷만 바꾼다.
 function formatDateLabel(readyDate: string): string {
   return readyDate.replaceAll('-', '.');
+}
+
+// "M월 D일" 형태(앞자리 0 없음)로 기준일을 표기한다 — 보조 문구 전용.
+function formatMonthDayLabel(readyDate: string): string {
+  const [, month, day] = readyDate.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
+}
+
+// readyDate(마지막으로 완전히 수집된 공식 데이터 날짜)가 오늘 KST와 다르면, 화면에
+// "오늘 날짜"를 허위로 표시하지 않는다 — 대신 상황에 맞는 제목으로 바꾸고 실제 기준일은
+// 보조 문구에만 작게 남긴다. cron이 새 날짜를 채워 readyDate가 오늘과 같아지는 순간
+// 별도 분기 없이 이 비교만으로 기존 "YYYY.MM.DD 별자리 운세 순위" 형식으로 돌아온다.
+type HomeDateHeading =
+  | { kind: 'today'; date: string }
+  | { kind: 'weekend-stale'; label: string }
+  | { kind: 'weekday-stale'; label: string };
+
+function getHomeDateHeading(readyDate: string, todayKst: string): HomeDateHeading {
+  if (readyDate === todayKst) {
+    return { kind: 'today', date: readyDate };
+  }
+
+  const todayDayOfWeek = new Date(`${todayKst}T00:00:00Z`).getUTCDay(); // 0=일, 6=토
+  const label = formatMonthDayLabel(readyDate);
+
+  return todayDayOfWeek === 0 || todayDayOfWeek === 6
+    ? { kind: 'weekend-stale', label }
+    : { kind: 'weekday-stale', label };
+}
+
+function HomeDateHeadingBlock({ heading }: { heading: HomeDateHeading }) {
+  return (
+    <div className="px-[var(--page-padding-x)] pt-6 text-center">
+      <h1 className="text-h1 text-[var(--text-primary)]">
+        {heading.kind === 'today' ? (
+          <>
+            <span className="text-[var(--text-brand)]">{formatDateLabel(heading.date)}</span>
+            {' 별자리 운세 순위'}
+          </>
+        ) : heading.kind === 'weekend-stale' ? (
+          '주말 별자리 운세'
+        ) : (
+          '오늘의 별자리 운세'
+        )}
+      </h1>
+      {heading.kind !== 'today' && (
+        <p className="mt-1 text-b2-regular text-[var(--text-tertiary)]">
+          {heading.kind === 'weekend-stale'
+            ? `${heading.label} 기준 최신 운세`
+            : `공식 운세 업데이트를 기다리고 있어요 · ${heading.label} 기준`}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function RankBadge({ rank }: { rank: number }) {
@@ -115,6 +170,8 @@ export default async function HomePage() {
   const ranking = readyDate ? await getRankingForDate(supabase, readyDate) : [];
 
   const [first, second, third, ...rest] = ranking;
+  const todayKst = getKstDateString();
+  const dateHeading = readyDate ? getHomeDateHeading(readyDate, todayKst) : null;
 
   return (
     <div className="page-content-with-bottom-nav bg-[var(--surface-brand)]">
@@ -123,12 +180,7 @@ export default async function HomePage() {
 
       {ranking.length === 0 ? (
         <>
-          {readyDate && (
-            <h1 className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
-              <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
-              {' 별자리 운세 순위'}
-            </h1>
-          )}
+          {dateHeading && <HomeDateHeadingBlock heading={dateHeading} />}
           <EmptyState
             icon="🌅"
             title="오늘의 운세를 준비하고 있어요"
@@ -141,12 +193,7 @@ export default async function HomePage() {
               브랜드 배경(surface-brand)을 그대로 쓰고, 이 영역만의 하단 여백만
               pb-4로 둔다(과거의 어두운 그라데이션 배경은 제거됨). ─── */}
           <div className="pb-4">
-            {readyDate && (
-              <h1 className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
-                <span className="text-[var(--text-brand)]">{formatDateLabel(readyDate)}</span>
-                {' 별자리 운세 순위'}
-              </h1>
-            )}
+            {dateHeading && <HomeDateHeadingBlock heading={dateHeading} />}
 
             {/* ─── 상위 3개 별자리 ─── */}
             <section className="px-[var(--page-padding-x)] pt-6" aria-label="오늘의 상위 3개 별자리">
