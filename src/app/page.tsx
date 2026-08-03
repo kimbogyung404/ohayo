@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
-import { getKstDateString } from '@/lib/date/kst';
-import { getRankingForDate, isDateReady } from '@/lib/fortune/queries';
+import { getLatestReadyDate, getRankingForDate } from '@/lib/fortune/queries';
 import EmptyState from '@/components/common/EmptyState';
 import BottomNavigation from '@/components/ui/BottomNavigation';
 import FortuneListItem from '@/components/ui/FortuneListItem';
@@ -30,19 +29,24 @@ const CARD_BACKGROUND_SRC: Record<1 | 2 | 3, string> = {
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
-// 홈 제목은 DB에 저장된 날짜(source_date)가 아니라 항상 오늘 KST 날짜+요일을 보여준다
-// ("2026.08.03 (월) 운세 순위") — 정책상 매일 오늘 날짜의 운세가 반드시 준비되어
-// 있어야 하므로(공식 실패 시 AI 대체 생성, collectService.ts 참고), 어제 이전 날짜를
-// "오늘"인 것처럼 표시하는 상황 자체가 생기지 않는다. 오늘 데이터가 아직 준비되지
-// 않은 극히 짧은 시간에도 제목은 오늘 날짜를 그대로 보여주고, 순위 목록만 EmptyState로
-// 대체한다(어제 순위를 대신 보여주지 않음).
-function TodayHeading({ todayKst }: { todayKst: string }) {
-  const dayOfWeek = new Date(`${todayKst}T00:00:00Z`).getUTCDay();
+// 홈 제목은 "오늘 날짜"가 아니라 실제로 화면에 표시 중인 운세의 날짜(readyDate)를
+// 그대로 보여준다("2026.08.03 (월) 운세 순위") — 매일 KST 09:00 자동 갱신(공식 우선,
+// 없으면 AI 대체, collectService.ts)이 12개 별자리+상세·단어까지 전부 끝나기 전까지는
+// 어제 이전의 가장 최근 완성 데이터를 계속 보여주고, 그동안 제목도 그 데이터의 날짜를
+// 표시한다 — 아직 완성되지 않은 오늘 날짜를 제목에 미리 보여주지 않는다. readyDate는
+// getLatestReadyDate(12개 전부 ai_status='success')로 얻으므로 여기서 다시 검증하지
+// 않는다. 요일은 날짜 문자열 자체의 달력상 요일이라 시간대와 무관하게 항상 KST 저장
+// 값과 일치한다.
+function DateHeading({ date }: { date: string }) {
+  const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
   return (
-    <h1 className="px-[var(--page-padding-x)] pt-6 text-center text-h1 text-[var(--text-primary)]">
-      <span className="text-[var(--text-brand)]">{todayKst.replaceAll('-', '.')}</span>
-      {` (${WEEKDAY_LABELS[dayOfWeek]}) 운세 순위`}
-    </h1>
+    <div className="px-[var(--page-padding-x)] pt-6 text-center">
+      <h1 className="text-h1 text-[var(--text-primary)]">
+        <span className="text-[var(--text-brand)]">{date.replaceAll('-', '.')}</span>
+        {` (${WEEKDAY_LABELS[dayOfWeek]}) 운세 순위`}
+      </h1>
+      <p className="mt-4 text-caption text-[var(--text-tertiary)]">매일 오전 9시 업데이트</p>
+    </div>
   );
 }
 
@@ -122,9 +126,8 @@ function TopRankCard({
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const todayKst = getKstDateString();
-  const ready = await isDateReady(supabase, todayKst);
-  const ranking = ready ? await getRankingForDate(supabase, todayKst) : [];
+  const readyDate = await getLatestReadyDate(supabase);
+  const ranking = readyDate ? await getRankingForDate(supabase, readyDate) : [];
 
   const [first, second, third, ...rest] = ranking;
 
@@ -135,7 +138,7 @@ export default async function HomePage() {
 
       {ranking.length === 0 ? (
         <>
-          <TodayHeading todayKst={todayKst} />
+          {readyDate && <DateHeading date={readyDate} />}
           <EmptyState
             icon="🌅"
             title="오늘의 운세를 준비하고 있어요"
@@ -148,10 +151,13 @@ export default async function HomePage() {
               브랜드 배경(surface-brand)을 그대로 쓰고, 이 영역만의 하단 여백만
               pb-4로 둔다(과거의 어두운 그라데이션 배경은 제거됨). ─── */}
           <div className="pb-4">
-            <TodayHeading todayKst={todayKst} />
+            {/* readyDate는 ranking이 비어있지 않을 때만 이 분기로 들어오므로 항상 존재한다. */}
+            <DateHeading date={readyDate!} />
 
-            {/* ─── 상위 3개 별자리 ─── */}
-            <section className="px-[var(--page-padding-x)] pt-6" aria-label="오늘의 상위 3개 별자리">
+            {/* ─── 상위 3개 별자리. 제목 아래 안내 문구(매일 오전 9시 업데이트)가 이미
+                시각적 여백을 주므로, 카드 영역 상단 간격은 pt-6(24px)에서 pt-4(16px)로
+                줄여 전체 리듬이 늘어져 보이지 않게 한다. ─── */}
+            <section className="px-[var(--page-padding-x)] pt-4" aria-label="오늘의 상위 3개 별자리">
               {/* 카드 외곽 크기는 SVG 배경 적용 전(커밋 824e3c4) 기준으로 되돌린
                   max-w-[140px] flex-1 + gap-3(12px) 조합을 그대로 쓴다 — 12px는
                   "최소 3px 여백" 요구를 넉넉히 만족하고, 카드끼리 겹치지 않는다. */}

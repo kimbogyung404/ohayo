@@ -4,7 +4,7 @@ import { runGenerateForDate } from '@/lib/ai/generateService';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getKstDateString } from '@/lib/date/kst';
 
-// M4(수집) + M5(생성) 통합 일일 실행. vercel.json이 매일 KST 09:10 이후 이 라우트
+// M4(수집) + M5(생성) 통합 일일 실행. vercel.json이 매일 KST 09:00 이후 이 라우트
 // 하나만 호출한다 — Hobby 플랜은 지정 시각으로부터 최대 1시간까지 실행이 밀릴 수 있어,
 // 수집·생성을 서로 다른 시간대의 별도 Cron 두 개로 등록하면 생성이 수집보다 먼저 실행될
 // 위험이 있다. 하나의 요청 안에서 수집 완료를 확인한 뒤에만 생성을 시작해 순서를 보장한다.
